@@ -1,0 +1,306 @@
+{
+  "database_schema": {
+    "version": "1.0",
+    "created_at": "2025-10-16",
+    "tables": [
+      {
+        "table_name": "OKRs",
+        "description": "Stores OKR definitions by role, year, and quarter",
+        "fields": [
+          {
+            "name": "id",
+            "type": "UUID",
+            "nullable": false,
+            "primary_key": true,
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          {
+            "name": "role_id",
+            "type": "INT",
+            "nullable": false,
+            "foreign_key": "roles.id",
+            "example": 1
+          },
+          {
+            "name": "year",
+            "type": "INT",
+            "nullable": false,
+            "example": 2025
+          },
+          {
+            "name": "quarter",
+            "type": "INT",
+            "nullable": false,
+            "constraints": "1-4",
+            "example": 4
+          },
+          {
+            "name": "okr_number",
+            "type": "INT",
+            "nullable": false,
+            "example": 1
+          },
+          {
+            "name": "okr_title",
+            "type": "string",
+            "nullable": false,
+            "example": "Discovery & Customer Alignment"
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "nullable": true,
+            "example": "Conduct customer research, competitive analysis..."
+          },
+          {
+            "name": "weight",
+            "type": "INT",
+            "nullable": false,
+            "constraints": "0-100",
+            "example": 15
+          },
+          {
+            "name": "type",
+            "type": "INT",
+            "nullable": false,
+            "mapping": "0=Qualitative, 1=Quantitative",
+            "example": 1
+          },
+          {
+            "name": "status",
+            "type": "INT",
+            "nullable": false,
+            "mapping": "0=draft, 1=active, 2=completed, 3=archived",
+            "example": 1
+          },
+          {
+            "name": "created_by",
+            "type": "INT",
+            "nullable": false,
+            "foreign_key": "users.id",
+            "example": 5
+          },
+          {
+            "name": "created_at",
+            "type": "TIMESTAMP",
+            "nullable": false,
+            "example": "2025-10-01 09:00:00"
+          },
+          {
+            "name": "updated_at",
+            "type": "TIMESTAMP",
+            "nullable": false,
+            "example": "2025-10-15 14:30:00"
+          }
+        ],
+        "indexes": [
+          "role_id",
+          "year, quarter",
+          "status"
+        ]
+      },
+      {
+        "table_name": "KPI_Components",
+        "description": "Stores individual KPI components that make up each OKR",
+        "fields": [
+          {
+            "name": "id",
+            "type": "UUID",
+            "nullable": false,
+            "primary_key": true,
+            "example": "660e8400-e29b-41d4-a716-446655440001"
+          },
+          {
+            "name": "okr_id",
+            "type": "UUID",
+            "nullable": false,
+            "foreign_key": "OKRs.id",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          {
+            "name": "component_name",
+            "type": "string",
+            "nullable": false,
+            "example": "Conduct at least ONE direct customer interview"
+          },
+          {
+            "name": "component_weight",
+            "type": "INT",
+            "nullable": false,
+            "constraints": "0-100",
+            "description": "Weight as percentage of OKR",
+            "example": 40
+          },
+          {
+            "name": "measurement_type",
+            "type": "INT",
+            "nullable": false,
+            "mapping": "0=count, 1=percentage, 2=score, 3=boolean",
+            "example": 0
+          },
+          {
+            "name": "target_value",
+            "type": "DECIMAL(5,2)",
+            "nullable": false,
+            "example": 1.00
+          },
+          {
+            "name": "unit",
+            "type": "string",
+            "nullable": false,
+            "example": "interviews"
+          },
+          {
+            "name": "description",
+            "type": "string",
+            "nullable": true,
+            "example": "One-on-one customer conversations to validate problems"
+          },
+          {
+            "name": "sort_order",
+            "type": "INT",
+            "nullable": false,
+            "example": 1
+          },
+          {
+            "name": "created_at",
+            "type": "TIMESTAMP",
+            "nullable": false,
+            "example": "2025-10-01 09:00:00"
+          }
+        ],
+        "indexes": [
+          "okr_id",
+          "sort_order"
+        ]
+      },
+      {
+        "table_name": "User_KPI_Data",
+        "description": "Stores user progress against KPI components with evidence",
+        "fields": [
+          {
+            "name": "id",
+            "type": "UUID",
+            "nullable": false,
+            "primary_key": true,
+            "example": "770e8400-e29b-41d4-a716-446655440002"
+          },
+          {
+            "name": "user_id",
+            "type": "INT",
+            "nullable": false,
+            "foreign_key": "users.id",
+            "example": 12
+          },
+          {
+            "name": "okr_id",
+            "type": "UUID",
+            "nullable": false,
+            "foreign_key": "OKRs.id",
+            "description": "Denormalized for reporting efficiency",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          {
+            "name": "kpi_component_id",
+            "type": "UUID",
+            "nullable": false,
+            "foreign_key": "KPI_Components.id",
+            "example": "660e8400-e29b-41d4-a716-446655440001"
+          },
+          {
+            "name": "value",
+            "type": "DECIMAL(5,2)",
+            "nullable": false,
+            "example": 1.00
+          },
+          {
+            "name": "data_source",
+            "type": "INT",
+            "nullable": false,
+            "mapping": "0=manual_log, 1=jotform, 2=auto",
+            "example": 0
+          },
+          {
+            "name": "evidence_link",
+            "type": "string",
+            "nullable": true,
+            "description": "URL to supporting documentation",
+            "example": "https://docs.google.com/document/d/123abc"
+          },
+          {
+            "name": "submitted_date",
+            "type": "TIMESTAMP",
+            "nullable": false,
+            "example": "2025-10-15 14:30:00"
+          },
+          {
+            "name": "status",
+            "type": "INT",
+            "nullable": false,
+            "mapping": "0=pending, 1=approved, 2=rejected",
+            "example": 1
+          },
+          {
+            "name": "created_at",
+            "type": "TIMESTAMP",
+            "nullable": false,
+            "example": "2025-10-15 14:30:00"
+          },
+          {
+            "name": "updated_at",
+            "type": "TIMESTAMP",
+            "nullable": false,
+            "example": "2025-10-16 10:00:00"
+          }
+        ],
+        "indexes": [
+          "user_id",
+          "okr_id",
+          "kpi_component_id",
+          "user_id, okr_id",
+          "status"
+        ]
+      }
+    ],
+    "relationships": {
+      "OKRs_to_KPI_Components": {
+        "type": "one_to_many",
+        "parent": "OKRs.id",
+        "child": "KPI_Components.okr_id"
+      },
+      "KPI_Components_to_User_KPI_Data": {
+        "type": "one_to_many",
+        "parent": "KPI_Components.id",
+        "child": "User_KPI_Data.kpi_component_id"
+      },
+      "Users_to_User_KPI_Data": {
+        "type": "one_to_many",
+        "parent": "users.id",
+        "child": "User_KPI_Data.user_id"
+      },
+      "OKRs_to_User_KPI_Data": {
+        "type": "one_to_many",
+        "parent": "OKRs.id",
+        "child": "User_KPI_Data.okr_id",
+        "note": "Denormalized for direct access"
+      }
+    },
+    "access_control": {
+      "rule": "Users can only view/modify data where user_id = authenticated_user_id",
+      "enforcement": "Backend query filtering on all SELECT, UPDATE, DELETE operations"
+    },
+    "notes": {
+      "design_decisions": [
+        "Denormalized okr_id in User_KPI_Data for faster reporting queries",
+        "INT enums instead of ENUM type for MVP scalability",
+        "DECIMAL(5,2) for values to support scores and percentages",
+        "TIMESTAMP for all temporal data with UTC assumption"
+      ],
+      "future_considerations": [
+        "Add soft_delete flag if audit trail is needed",
+        "Consider partitioning User_KPI_Data by user_id for scale",
+        "Add approval_by field for manager sign-off workflow"
+      ]
+    }
+  }
+}
