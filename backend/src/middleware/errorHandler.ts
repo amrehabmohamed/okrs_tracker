@@ -9,12 +9,38 @@ export interface ErrorResponse {
 export class AppError extends Error {
   status: number;
   isOperational: boolean;
+  details?: any;
 
   constructor(message: string, status: number = 500, isOperational: boolean = true) {
     super(message);
     this.status = status;
     this.isOperational = isOperational;
     Error.captureStackTrace(this, this.constructor);
+  }
+}
+
+export class ValidationError extends AppError {
+  constructor(message: string, details?: any) {
+    super(message, 400);
+    this.details = details;
+  }
+}
+
+export class NotFoundError extends AppError {
+  constructor(message: string) {
+    super(message, 404);
+  }
+}
+
+export class AuthorizationError extends AppError {
+  constructor(message: string) {
+    super(message, 403);
+  }
+}
+
+export class ConflictError extends AppError {
+  constructor(message: string) {
+    super(message, 409);
   }
 }
 
@@ -40,6 +66,16 @@ export const errorHandler = (
   if (err instanceof AppError) {
     status = err.status;
     message = err.message;
+    
+    // Include details for validation errors
+    if (err instanceof ValidationError && err.details) {
+      return res.status(status).json({
+        status,
+        message,
+        details: err.details,
+        ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+      });
+    }
   }
 
   res.status(status).json({

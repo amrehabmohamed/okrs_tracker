@@ -39,11 +39,10 @@ app.get('/health', (req, res) => {
 
 // Routes
 import authRoutes from './routes/auth';
+import okrRoutes from './routes/okr';
 
 app.use('/api/auth', authRoutes);
-// Additional routes will be added here
-// app.use('/api/okrs', okrRoutes);
-// etc.
+app.use('/api/okrs', okrRoutes);
 
 // 404 handler
 app.use((req, res) => {
