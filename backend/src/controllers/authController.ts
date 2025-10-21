@@ -122,6 +122,10 @@ export const login = asyncHandler(async (req: AuthRequest, res: Response, next: 
     .eq('id', authData.user.id)
     .single();
 
+  console.log('Login debug - User ID:', authData.user.id);
+  console.log('Login debug - Profile data:', userProfile);
+  console.log('Login debug - Profile error:', profileError);
+
   if (profileError || !userProfile) {
     throw new AppError('User profile not found', 404);
   }
