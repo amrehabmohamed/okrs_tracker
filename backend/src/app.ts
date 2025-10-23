@@ -41,10 +41,12 @@ app.get('/health', (req, res) => {
 import authRoutes from './routes/auth';
 import okrRoutes from './routes/okr';
 import kpiComponentRoutes from './routes/kpiComponent';
+import kpiDataRoutes from './routes/kpiData';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/okrs', okrRoutes);
 app.use('/api/kpi-components', kpiComponentRoutes);
+app.use('/api/kpi-data', kpiDataRoutes);
 
 // 404 handler
 app.use((req, res) => {
