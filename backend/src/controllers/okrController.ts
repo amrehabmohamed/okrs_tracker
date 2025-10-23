@@ -3,24 +3,13 @@ import { asyncHandler } from '../middleware/errorHandler';
 import * as okrService from '../services/okrService';
 import { CreateOKRInput, UpdateOKRInput, OKRFilters } from '../types/okr';
 
-// Extend Request type inline
-interface AuthRequest extends Request {
-  user?: {
-    id: string;
-    email: string;
-    is_manager: number;
-    role: string;
-    team_id: number;
-  };
-}
-
 /**
  * OKR Controller - Thin request/response layer
  */
 
 export const createOKR = asyncHandler(async (req: Request, res: Response) => {
   const input: CreateOKRInput = req.body;
-  const created_by = (req as AuthRequest).user!.id;
+  const created_by = req.user!.id;
 
   const okr = await okrService.createOKR(input, created_by);
 
@@ -58,7 +47,7 @@ export const getOKR = asyncHandler(async (req: Request, res: Response) => {
 export const updateOKR = asyncHandler(async (req: Request, res: Response) => {
   const okr_id = req.params.id;
   const input: UpdateOKRInput = req.body;
-  const updated_by = (req as AuthRequest).user!.id;
+  const updated_by = req.user!.id;
 
   const okr = await okrService.updateOKR(okr_id, input, updated_by);
 
@@ -70,7 +59,7 @@ export const updateOKR = asyncHandler(async (req: Request, res: Response) => {
 
 export const deleteOKR = asyncHandler(async (req: Request, res: Response) => {
   const okr_id = req.params.id;
-  const deleted_by = (req as AuthRequest).user!.id;
+  const deleted_by = req.user!.id;
   const reason = req.body.reason;
 
   const okr = await okrService.deleteOKR(okr_id, deleted_by, reason);

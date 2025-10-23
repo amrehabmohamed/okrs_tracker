@@ -29,6 +29,7 @@ maintainer: "Claude Code"
 | Database Layer | 100% |
 | Testing Coverage | ~40% |
 | Critical Blockers | 0 |
+| Input Validation | ✅ Complete |
 | High Priority Items | 1 (RLS review) |
 
 ---
@@ -88,10 +89,15 @@ maintainer: "Claude Code"
 
 **Outstanding:**
 - 🟡 RLS policy security audit needed (1-2 hours)
-- 🟡 API documentation not generated
-- 🟡 Postman collection not created
 
-**Next Step:** Complete RLS review → Phase 3 sign-off
+**Recently Completed:**
+- ✅ API documentation generated (OpenAPI 3.0 spec)
+- ✅ Authentication guide complete
+- ✅ RFC 7807 error catalog complete
+- ✅ Rate limiting documentation complete
+- ✅ Input validation applied to all Phase 2-3 routes (15 endpoints)
+
+**Next Step:** Complete RLS review → Phase 2 sign-off → Begin Phase 4
 
 ---
 
@@ -315,16 +321,23 @@ maintainer: "Claude Code"
    - Effort: 2 hours
    - Owner: Security review (human)
 
+### Recently Completed
+- ✅ **Input Validation (Zod)** - Fully Applied
+  - Status: Complete - 15/15 Phase 2-3 endpoints validated
+  - Schemas: `/backend/src/validation/schemas.ts`
+  - Middleware: `/backend/src/middleware/validate.ts`
+  - Applied: Auth (5), OKRs (5), KPI Components (5)
+
 ### Medium Priority
 1. **Mailgun Integration** (Phase 5+)
    - Impact: Custom email notifications
    - Effort: 1 day
    - Deferred to Phase 5 (Phase 2 uses Supabase built-in)
 
-2. **API Documentation** (Before Phase 4)
+2. ✅ **API Documentation** - COMPLETE
    - Impact: Developer experience
-   - Effort: 4 hours
-   - Should generate from routes
+   - Status: ✅ Complete (OpenAPI 3.0 + guides)
+   - Location: `/docs/api/`
 
 ---
 

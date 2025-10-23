@@ -2,6 +2,14 @@ import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import * as authController from '../controllers/authController';
 import { authenticate, requireAdmin } from '../middleware/auth';
+import { validate } from '../middleware/validate';
+import { 
+  signupSchema, 
+  loginSchema, 
+  passwordResetSchema, 
+  passwordChangeSchema,
+  checkEmailSchema
+} from '../validation/schemas';
 
 const router = Router();
 
@@ -27,16 +35,16 @@ const generalLimiter = rateLimit({
  */
 
 // POST /api/auth/signup - Register new user
-router.post('/signup', authLimiter, authController.signup);
+router.post('/signup', authLimiter, validate({ body: signupSchema }), authController.signup);
 
 // POST /api/auth/login - Login with email/password
-router.post('/login', authLimiter, authController.login);
+router.post('/login', authLimiter, validate({ body: loginSchema }), authController.login);
 
 // POST /api/auth/password-reset - Request password reset email
-router.post('/password-reset', authLimiter, authController.requestPasswordReset);
+router.post('/password-reset', authLimiter, validate({ body: passwordResetSchema }), authController.requestPasswordReset);
 
 // POST /api/auth/verify-email-resend - Resend verification email
-router.post('/verify-email-resend', authLimiter, authController.resendVerificationEmail);
+router.post('/verify-email-resend', authLimiter, validate({ body: checkEmailSchema }), authController.resendVerificationEmail);
 
 /**
  * Protected routes (authentication required)
@@ -49,7 +57,7 @@ router.get('/me', authenticate, authController.me);
 router.post('/logout', authenticate, authController.logout);
 
 // POST /api/auth/password-change - Change password
-router.post('/password-change', authenticate, generalLimiter, authController.changePassword);
+router.post('/password-change', authenticate, generalLimiter, validate({ body: passwordChangeSchema }), authController.changePassword);
 
 /**
  * Admin routes (require admin access)

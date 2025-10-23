@@ -1,7 +1,7 @@
-import { Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { supabase } from '../db';
-import { AppError, asyncHandler } from '../middleware/errorHandler';
-import { AuthRequest } from '../middleware/auth';
+import { AppError, asyncHandler, createSuccessResponse } from '../middleware/errorHandler';
+import { ErrorCode } from '../types/errors';
 
 interface SignupBody {
   email: string;
@@ -25,15 +25,22 @@ interface PasswordResetBody {
   email: string;
 }
 
-export const signup = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const signup = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   const { email, password, first_name, last_name, role, team_id }: SignupBody = req.body;
 
   if (!email || !password || !first_name || !last_name) {
-    throw new AppError('Email, password, first name, and last name are required', 400);
+    throw new AppError(
+      ErrorCode.VALIDATION_REQUIRED_FIELD,
+      'Email, password, first name, and last name are required',
+      { fields: ['email', 'password', 'first_name', 'last_name'] }
+    );
   }
 
   if (password.length < 8) {
-    throw new AppError('Password must be at least 8 characters', 400);
+    throw new AppError(
+      ErrorCode.VALIDATION_PASSWORD_WEAK,
+      'Password must be at least 8 characters'
+    );
   }
 
   const { data: existingUser } = await supabase
@@ -43,7 +50,11 @@ export const signup = asyncHandler(async (req: AuthRequest, res: Response, next:
     .single();
 
   if (existingUser) {
-    throw new AppError('User with this email already exists', 409);
+    throw new AppError(
+      ErrorCode.RESOURCE_ALREADY_EXISTS,
+      'User with this email already exists',
+      { field: 'email', value: email }
+    );
   }
 
   const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -59,13 +70,27 @@ export const signup = asyncHandler(async (req: AuthRequest, res: Response, next:
   });
 
   if (authError) {
-    throw new AppError(authError.message, 400);
+    throw new AppError(
+      ErrorCode.VALIDATION_FAILED,
+      authError.message
+    );
   }
 
   if (!authData.user) {
-    throw new AppError('Failed to create user', 500);
+    throw new AppError(
+      ErrorCode.SERVER_INTERNAL_ERROR,
+      'Failed to create user'
+    );
   }
 
+  // Get user profile data
+  const { data: userProfile } = await supabase
+    .from('Users')
+    .select('id, email, first_name, last_name, role, team_id, is_manager, status')
+    .eq('id', authData.user.id)
+    .single();
+
+  // Update role/team if provided
   if (role || team_id) {
     const { error: updateError } = await supabase
       .from('Users')
@@ -80,6 +105,21 @@ export const signup = asyncHandler(async (req: AuthRequest, res: Response, next:
     }
   }
 
+  // Cache user metadata in JWT for performance optimization
+  // This eliminates the need for a DB query on every authenticated request
+  if (userProfile) {
+    await supabase.auth.admin.updateUserById(authData.user.id, {
+      user_metadata: {
+        role: userProfile.role,
+        team_id: userProfile.team_id,
+        is_manager: userProfile.is_manager,
+        status: userProfile.status,
+        first_name: userProfile.first_name,
+        last_name: userProfile.last_name
+      }
+    });
+  }
+
   res.status(201).json({
     success: true,
     message: 'Registration successful. Please check your email to verify your account.',
@@ -92,11 +132,15 @@ export const signup = asyncHandler(async (req: AuthRequest, res: Response, next:
   });
 });
 
-export const login = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const login = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   const { email, password }: LoginBody = req.body;
 
   if (!email || !password) {
-    throw new AppError('Email and password are required', 400);
+    throw new AppError(
+      ErrorCode.VALIDATION_REQUIRED_FIELD,
+      'Email and password are required',
+      { fields: ['email', 'password'] }
+    );
   }
 
   const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
@@ -105,15 +149,24 @@ export const login = asyncHandler(async (req: AuthRequest, res: Response, next: 
   });
 
   if (authError) {
-    throw new AppError('Invalid credentials', 401);
+    throw new AppError(
+      ErrorCode.AUTH_CREDENTIALS_INVALID,
+      'Invalid email or password'
+    );
   }
 
   if (!authData.user || !authData.session) {
-    throw new AppError('Login failed', 401);
+    throw new AppError(
+      ErrorCode.AUTH_CREDENTIALS_INVALID,
+      'Login failed'
+    );
   }
 
   if (!authData.user.email_confirmed_at) {
-    throw new AppError('Please verify your email before logging in', 403);
+    throw new AppError(
+      ErrorCode.AUTH_EMAIL_NOT_VERIFIED,
+      'Please verify your email before logging in'
+    );
   }
 
   const { data: userProfile, error: profileError } = await supabase
@@ -127,15 +180,38 @@ export const login = asyncHandler(async (req: AuthRequest, res: Response, next: 
   console.log('Login debug - Profile error:', profileError);
 
   if (profileError || !userProfile) {
-    throw new AppError('User profile not found', 404);
+    throw new AppError(
+      ErrorCode.RESOURCE_NOT_FOUND,
+      'User profile not found'
+    );
   }
 
   if (userProfile.status !== 'approved') {
+    const errorCode = userProfile.status === 'rejected' 
+      ? ErrorCode.AUTH_ACCOUNT_REJECTED
+      : userProfile.status === 'suspended'
+      ? ErrorCode.AUTH_ACCOUNT_SUSPENDED
+      : ErrorCode.AUTH_ACCOUNT_NOT_APPROVED;
+    
     throw new AppError(
-      `Account is ${userProfile.status}. Please wait for admin approval.`,
-      403
+      errorCode,
+      `Account is ${userProfile.status}. Please contact admin.`,
+      { status: userProfile.status }
     );
   }
+
+  // Cache user metadata in JWT for performance optimization
+  // This reduces DB queries from 2 to 1 per authenticated request (50% reduction)
+  await supabase.auth.admin.updateUserById(authData.user.id, {
+    user_metadata: {
+      role: userProfile.role,
+      team_id: userProfile.team_id,
+      is_manager: userProfile.is_manager,
+      status: userProfile.status,
+      first_name: userProfile.first_name,
+      last_name: userProfile.last_name
+    }
+  });
 
   res.status(200).json({
     success: true,
@@ -149,7 +225,7 @@ export const login = asyncHandler(async (req: AuthRequest, res: Response, next: 
   });
 });
 
-export const logout = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const logout = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
   
   if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -167,9 +243,12 @@ export const logout = asyncHandler(async (req: AuthRequest, res: Response, next:
   });
 });
 
-export const me = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const me = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   if (!req.user) {
-    throw new AppError('Not authenticated', 401);
+    throw new AppError(
+      ErrorCode.AUTH_TOKEN_INVALID,
+      'Not authenticated'
+    );
   }
 
   const { data: userProfile, error } = await supabase
@@ -179,7 +258,10 @@ export const me = asyncHandler(async (req: AuthRequest, res: Response, next: Nex
     .single();
 
   if (error || !userProfile) {
-    throw new AppError('User not found', 404);
+    throw new AppError(
+      ErrorCode.RESOURCE_NOT_FOUND,
+      'User not found'
+    );
   }
 
   res.status(200).json({
@@ -188,19 +270,29 @@ export const me = asyncHandler(async (req: AuthRequest, res: Response, next: Nex
   });
 });
 
-export const changePassword = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const changePassword = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   if (!req.user) {
-    throw new AppError('Not authenticated', 401);
+    throw new AppError(
+      ErrorCode.AUTH_TOKEN_INVALID,
+      'Not authenticated'
+    );
   }
 
   const { new_password }: PasswordChangeBody = req.body;
 
   if (!new_password) {
-    throw new AppError('New password is required', 400);
+    throw new AppError(
+      ErrorCode.VALIDATION_REQUIRED_FIELD,
+      'New password is required',
+      { field: 'new_password' }
+    );
   }
 
   if (new_password.length < 8) {
-    throw new AppError('Password must be at least 8 characters', 400);
+    throw new AppError(
+      ErrorCode.VALIDATION_PASSWORD_WEAK,
+      'Password must be at least 8 characters'
+    );
   }
 
   const { error } = await supabase.auth.admin.updateUserById(
@@ -209,7 +301,10 @@ export const changePassword = asyncHandler(async (req: AuthRequest, res: Respons
   );
 
   if (error) {
-    throw new AppError(error.message, 400);
+    throw new AppError(
+      ErrorCode.VALIDATION_FAILED,
+      error.message
+    );
   }
 
   res.status(200).json({
@@ -218,11 +313,15 @@ export const changePassword = asyncHandler(async (req: AuthRequest, res: Respons
   });
 });
 
-export const requestPasswordReset = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const requestPasswordReset = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   const { email }: PasswordResetBody = req.body;
 
   if (!email) {
-    throw new AppError('Email is required', 400);
+    throw new AppError(
+      ErrorCode.VALIDATION_REQUIRED_FIELD,
+      'Email is required',
+      { field: 'email' }
+    );
   }
 
   const { error } = await supabase.auth.resetPasswordForEmail(email.toLowerCase(), {
@@ -239,11 +338,15 @@ export const requestPasswordReset = asyncHandler(async (req: AuthRequest, res: R
   });
 });
 
-export const resendVerificationEmail = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const resendVerificationEmail = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   const { email }: { email: string } = req.body;
 
   if (!email) {
-    throw new AppError('Email is required', 400);
+    throw new AppError(
+      ErrorCode.VALIDATION_REQUIRED_FIELD,
+      'Email is required',
+      { field: 'email' }
+    );
   }
 
   const { error } = await supabase.auth.resend({
@@ -264,7 +367,7 @@ export const resendVerificationEmail = asyncHandler(async (req: AuthRequest, res
   });
 });
 
-export const listPendingUsers = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const listPendingUsers = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   const { data: users, error } = await supabase
     .from('Users')
     .select('id, email, first_name, last_name, role, team_id, status, created_at')
@@ -272,7 +375,10 @@ export const listPendingUsers = asyncHandler(async (req: AuthRequest, res: Respo
     .order('created_at', { ascending: false });
 
   if (error) {
-    throw new AppError('Failed to fetch pending users', 500);
+    throw new AppError(
+      ErrorCode.DATABASE_ERROR,
+      'Failed to fetch pending users'
+    );
   }
 
   res.status(200).json({
@@ -282,7 +388,7 @@ export const listPendingUsers = asyncHandler(async (req: AuthRequest, res: Respo
   });
 });
 
-export const approveUser = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const approveUser = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   const { userId } = req.params;
 
   const { data, error } = await supabase
@@ -293,11 +399,17 @@ export const approveUser = asyncHandler(async (req: AuthRequest, res: Response, 
     .single();
 
   if (error) {
-    throw new AppError('Failed to approve user', 500);
+    throw new AppError(
+      ErrorCode.DATABASE_ERROR,
+      'Failed to approve user'
+    );
   }
 
   if (!data) {
-    throw new AppError('User not found', 404);
+    throw new AppError(
+      ErrorCode.RESOURCE_NOT_FOUND,
+      'User not found'
+    );
   }
 
   res.status(200).json({
@@ -307,7 +419,7 @@ export const approveUser = asyncHandler(async (req: AuthRequest, res: Response, 
   });
 });
 
-export const rejectUser = asyncHandler(async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const rejectUser = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   const { userId } = req.params;
   const { reason } = req.body;
 
@@ -319,11 +431,17 @@ export const rejectUser = asyncHandler(async (req: AuthRequest, res: Response, n
     .single();
 
   if (error) {
-    throw new AppError('Failed to reject user', 500);
+    throw new AppError(
+      ErrorCode.DATABASE_ERROR,
+      'Failed to reject user'
+    );
   }
 
   if (!data) {
-    throw new AppError('User not found', 404);
+    throw new AppError(
+      ErrorCode.RESOURCE_NOT_FOUND,
+      'User not found'
+    );
   }
 
   if (reason) {

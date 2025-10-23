@@ -1,0 +1,1333 @@
+openapi: 3.0.3
+
+info:
+  title: KPI Platform API
+  version: 1.0.0
+  description: |
+    State-of-the-art OKR/KPI tracking platform API.
+    
+    ## Features
+    - Role-based access control
+    - Row-level security (RLS)
+    - JWT authentication
+    - RFC 7807 error format
+    - Rate limiting
+    - Audit logging
+    
+    ## Base URL
+    - Local: `http://localhost:3001/api`
+    - Staging: `https://api-staging.kpi-platform.com/api`
+    - Production: `https://api.kpi-platform.com/api`
+    
+  contact:
+    name: API Support
+    email: support@kpi-platform.com
+  
+  license:
+    name: Proprietary
+
+servers:
+  - url: http://localhost:3001/api
+    description: Local development
+  - url: https://api-staging.kpi-platform.com/api
+    description: Staging environment
+  - url: https://api.kpi-platform.com/api
+    description: Production environment
+
+tags:
+  - name: Authentication
+    description: User authentication and session management
+  - name: OKRs
+    description: OKR management (admin only)
+  - name: KPI Components
+    description: KPI component management (admin only)
+  - name: Data Submission
+    description: KPI data submission (Phase 4)
+  - name: Progress
+    description: Progress calculation (Phase 5)
+  - name: Tasks
+    description: Task management and approvals (Phase 6)
+  - name: Manager Dashboard
+    description: Team reporting (Phase 7)
+  - name: Webhooks
+    description: External integrations (Phase 8)
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT token obtained from `/auth/login` endpoint.
+        
+        Token payload:
+        ```json
+        {
+          "user_id": 123,
+          "email": "user@example.com",
+          "role": "Product Manager",
+          "team_id": 1,
+          "is_manager": 0,
+          "iat": 1635945600,
+          "exp": 1635949200
+        }
+        ```
+
+  schemas:
+    # Error Responses (RFC 7807)
+    Error:
+      type: object
+      required:
+        - type
+        - title
+        - status
+        - detail
+        - instance
+      properties:
+        type:
+          type: string
+          format: uri
+          description: URI reference identifying the error type
+          example: "https://api.kpi-platform.com/errors/validation-error"
+        title:
+          type: string
+          description: Short human-readable summary
+          example: "Validation Error"
+        status:
+          type: integer
+          description: HTTP status code
+          example: 400
+        detail:
+          type: string
+          description: Detailed error explanation
+          example: "Email is required and must be valid format"
+        instance:
+          type: string
+          description: URI reference identifying this error occurrence
+          example: "/api/auth/signup"
+        requestId:
+          type: string
+          format: uuid
+          description: Unique request identifier for tracking
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        errors:
+          type: array
+          description: Field-level validation errors (optional)
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                example: "email"
+              message:
+                type: string
+                example: "Email must be valid format"
+
+    # User Schemas
+    User:
+      type: object
+      required:
+        - id
+        - email
+        - role
+        - team_id
+        - is_manager
+        - created_at
+      properties:
+        id:
+          type: integer
+          example: 1
+        email:
+          type: string
+          format: email
+          example: "pm@company.com"
+        firstName:
+          type: string
+          example: "John"
+        lastName:
+          type: string
+          example: "Doe"
+        role:
+          type: string
+          example: "Product Manager"
+        team_id:
+          type: integer
+          example: 1
+        is_manager:
+          type: integer
+          enum: [0, 1, 2, 3, 4]
+          description: "0=user, 1=product_lead, 2=design_lead, 3=vp_product, 4=cto"
+          example: 0
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-10-01T09:00:00Z"
+
+    UserSignupRequest:
+      type: object
+      required:
+        - email
+        - password
+        - firstName
+        - lastName
+      properties:
+        email:
+          type: string
+          format: email
+          example: "newuser@company.com"
+        password:
+          type: string
+          format: password
+          minLength: 12
+          description: "Min 12 chars, must include uppercase, lowercase, number"
+          example: "SecurePass123!"
+        firstName:
+          type: string
+          minLength: 1
+          example: "Jane"
+        lastName:
+          type: string
+          minLength: 1
+          example: "Smith"
+        team_id:
+          type: integer
+          example: 1
+
+    UserLoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: "pm@company.com"
+        password:
+          type: string
+          format: password
+          example: "SecurePass123!"
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT access token
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        user:
+          $ref: '#/components/schemas/User'
+        expiresIn:
+          type: integer
+          description: Token expiry in seconds
+          example: 3600
+
+    # OKR Schemas
+    OKR:
+      type: object
+      required:
+        - id
+        - role_id
+        - year
+        - quarter
+        - okr_number
+        - okr_title
+        - weight
+        - type
+        - status
+        - deadline_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        role_id:
+          type: integer
+          example: 1
+        year:
+          type: integer
+          minimum: 2025
+          example: 2025
+        quarter:
+          type: integer
+          minimum: 1
+          maximum: 4
+          example: 4
+        okr_number:
+          type: integer
+          minimum: 1
+          maximum: 8
+          example: 1
+        okr_title:
+          type: string
+          example: "Discovery & Customer Alignment"
+        description:
+          type: string
+          nullable: true
+          example: "Conduct customer research and competitive analysis"
+        weight:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: "Weight as percentage (all OKRs must sum to 100%)"
+          example: 15
+        type:
+          type: integer
+          enum: [0, 1]
+          description: "0=Qualitative, 1=Quantitative"
+          example: 1
+        status:
+          type: integer
+          enum: [0, 1, 2, 3]
+          description: "0=draft, 1=active, 2=completed, 3=archived"
+          example: 1
+        tags:
+          type: string
+          nullable: true
+          description: "Comma-separated tags"
+          example: "v1_onboarding,oct15"
+        deadline_at:
+          type: string
+          format: date-time
+          description: "Hard deadline for submissions"
+          example: "2025-11-13T23:59:59Z"
+        deadline_missed:
+          type: boolean
+          default: false
+          description: "True when deadline_at exceeded"
+        completed_date:
+          type: string
+          format: date-time
+          nullable: true
+        created_by:
+          type: integer
+          example: 5
+        created_at:
+          type: string
+          format: date-time
+          example: "2025-10-01T09:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2025-10-15T14:30:00Z"
+        components:
+          type: array
+          description: "Nested KPI components (when expanded)"
+          items:
+            $ref: '#/components/schemas/KPIComponent'
+
+    OKRCreateRequest:
+      type: object
+      required:
+        - role_id
+        - year
+        - quarter
+        - okr_number
+        - okr_title
+        - weight
+        - type
+      properties:
+        role_id:
+          type: integer
+          example: 1
+        year:
+          type: integer
+          minimum: 2025
+          example: 2025
+        quarter:
+          type: integer
+          minimum: 1
+          maximum: 4
+          example: 4
+        okr_number:
+          type: integer
+          minimum: 1
+          maximum: 8
+          example: 1
+        okr_title:
+          type: string
+          minLength: 1
+          example: "Discovery & Customer Alignment"
+        description:
+          type: string
+          nullable: true
+        weight:
+          type: integer
+          minimum: 0
+          maximum: 100
+          example: 15
+        type:
+          type: integer
+          enum: [0, 1]
+          example: 1
+        tags:
+          type: string
+          nullable: true
+
+    # KPI Component Schemas
+    KPIComponent:
+      type: object
+      required:
+        - id
+        - okr_id
+        - component_name
+        - component_weight
+        - measurement_type
+        - target_value
+        - unit
+        - deadline_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "660e8400-e29b-41d4-a716-446655440001"
+        okr_id:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        component_name:
+          type: string
+          example: "Conduct at least ONE direct customer interview"
+        component_weight:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: "Weight as percentage of parent OKR (must sum to 100%)"
+          example: 40
+        measurement_type:
+          type: integer
+          enum: [0, 1, 2, 3]
+          description: "0=count, 1=percentage, 2=score, 3=boolean"
+          example: 0
+        target_value:
+          type: number
+          format: decimal
+          minimum: 0
+          example: 1.00
+        unit:
+          type: string
+          example: "interviews"
+        description:
+          type: string
+          nullable: true
+        sort_order:
+          type: integer
+          example: 1
+        deadline_at:
+          type: string
+          format: date-time
+          description: "Inherits from OKR or overrides"
+        deadline_missed:
+          type: boolean
+          default: false
+        completed_date:
+          type: string
+          format: date-time
+          nullable: true
+        counting_method:
+          type: integer
+          enum: [0, 1, 2]
+          description: "0=cumulative, 1=individual, 2=per_period"
+          example: 0
+        created_at:
+          type: string
+          format: date-time
+
+    KPIComponentCreateRequest:
+      type: object
+      required:
+        - okr_id
+        - component_name
+        - component_weight
+        - measurement_type
+        - target_value
+        - unit
+      properties:
+        okr_id:
+          type: string
+          format: uuid
+        component_name:
+          type: string
+          minLength: 1
+        component_weight:
+          type: integer
+          minimum: 0
+          maximum: 100
+        measurement_type:
+          type: integer
+          enum: [0, 1, 2, 3]
+        target_value:
+          type: number
+          format: decimal
+          minimum: 0
+        unit:
+          type: string
+        description:
+          type: string
+          nullable: true
+        sort_order:
+          type: integer
+        counting_method:
+          type: integer
+          enum: [0, 1, 2]
+          default: 0
+
+    # Pagination
+    PaginationMeta:
+      type: object
+      properties:
+        currentPage:
+          type: integer
+          example: 1
+        totalPages:
+          type: integer
+          example: 5
+        totalItems:
+          type: integer
+          example: 42
+        itemsPerPage:
+          type: integer
+          example: 20
+
+  responses:
+    BadRequest:
+      description: Bad request - validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            type: "https://api.kpi-platform.com/errors/validation-error"
+            title: "Validation Error"
+            status: 400
+            detail: "Email is required and must be valid format"
+            instance: "/api/auth/signup"
+            requestId: "550e8400-e29b-41d4-a716-446655440000"
+
+    Unauthorized:
+      description: Unauthorized - missing or invalid token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            type: "https://api.kpi-platform.com/errors/unauthorized"
+            title: "Unauthorized"
+            status: 401
+            detail: "Missing or invalid authentication token"
+            instance: "/api/auth/me"
+            requestId: "550e8400-e29b-41d4-a716-446655440000"
+
+    Forbidden:
+      description: Forbidden - insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            type: "https://api.kpi-platform.com/errors/forbidden"
+            title: "Forbidden"
+            status: 403
+            detail: "You do not have permission to access this resource"
+            instance: "/api/okrs"
+            requestId: "550e8400-e29b-41d4-a716-446655440000"
+
+    NotFound:
+      description: Not found - resource doesn't exist
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            type: "https://api.kpi-platform.com/errors/not-found"
+            title: "Not Found"
+            status: 404
+            detail: "OKR with id '550e8400...' not found"
+            instance: "/api/okrs/550e8400-e29b-41d4-a716-446655440000"
+            requestId: "550e8400-e29b-41d4-a716-446655440000"
+
+    RateLimitExceeded:
+      description: Too many requests - rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            type: "https://api.kpi-platform.com/errors/rate-limit-exceeded"
+            title: "Rate Limit Exceeded"
+            status: 429
+            detail: "Rate limit of 5 requests per 15 minutes exceeded"
+            instance: "/api/auth/login"
+            requestId: "550e8400-e29b-41d4-a716-446655440000"
+      headers:
+        X-RateLimit-Limit:
+          schema:
+            type: integer
+          description: Request limit per window
+        X-RateLimit-Remaining:
+          schema:
+            type: integer
+          description: Remaining requests in window
+        X-RateLimit-Reset:
+          schema:
+            type: integer
+          description: Unix timestamp when limit resets
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            type: "https://api.kpi-platform.com/errors/internal-server-error"
+            title: "Internal Server Error"
+            status: 500
+            detail: "An unexpected error occurred. Please try again later."
+            instance: "/api/okrs"
+            requestId: "550e8400-e29b-41d4-a716-446655440000"
+
+  parameters:
+    OKRIdParam:
+      name: id
+      in: path
+      required: true
+      description: OKR unique identifier
+      schema:
+        type: string
+        format: uuid
+        example: "550e8400-e29b-41d4-a716-446655440000"
+
+    ComponentIdParam:
+      name: id
+      in: path
+      required: true
+      description: KPI Component unique identifier
+      schema:
+        type: string
+        format: uuid
+
+    YearParam:
+      name: year
+      in: query
+      description: Filter by year
+      schema:
+        type: integer
+        minimum: 2025
+        example: 2025
+
+    QuarterParam:
+      name: quarter
+      in: query
+      description: Filter by quarter
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 4
+        example: 4
+
+    RoleIdParam:
+      name: role_id
+      in: query
+      description: Filter by role ID
+      schema:
+        type: integer
+        example: 1
+
+    StatusParam:
+      name: status
+      in: query
+      description: Filter by status
+      schema:
+        type: integer
+        enum: [0, 1, 2, 3]
+
+paths:
+  # ==========================================
+  # AUTHENTICATION ENDPOINTS
+  # ==========================================
+
+  /auth/signup:
+    post:
+      tags:
+        - Authentication
+      summary: Create new user account
+      description: |
+        Register a new user. User will receive verification email.
+        Account requires admin approval before login is allowed.
+      operationId: signupUser
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserSignupRequest'
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  userId:
+                    type: integer
+                    example: 123
+                  status:
+                    type: string
+                    example: "pending_verification"
+                  message:
+                    type: string
+                    example: "Verification email sent to newuser@company.com"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/verify-email:
+    post:
+      tags:
+        - Authentication
+      summary: Verify email address
+      description: Verify email using token from verification email
+      operationId: verifyEmail
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+              properties:
+                token:
+                  type: string
+                  description: Verification token from email
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+      responses:
+        '200':
+          description: Email verified successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Email verified. Awaiting admin approval."
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          description: Invalid or expired token
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Login and get JWT token
+      description: |
+        Authenticate user and receive JWT access token.
+        Requires email verification and admin approval.
+      operationId: loginUser
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserLoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Invalid credentials
+        '403':
+          description: Account not verified or approved
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: Logout and invalidate token
+      description: Logout current user session
+      operationId: logoutUser
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Logged out successfully"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/me:
+    get:
+      tags:
+        - Authentication
+      summary: Get current user info
+      description: Get authenticated user's profile
+      operationId: getCurrentUser
+      responses:
+        '200':
+          description: User info retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/password-reset:
+    post:
+      tags:
+        - Authentication
+      summary: Request password reset
+      description: Send password reset link to email
+      operationId: requestPasswordReset
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "user@company.com"
+      responses:
+        '200':
+          description: Reset email sent (always returns 200 for security)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "If account exists, reset link sent to email"
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/password-change:
+    post:
+      tags:
+        - Authentication
+      summary: Change password (authenticated)
+      description: Change password while logged in
+      operationId: changePassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - oldPassword
+                - newPassword
+              properties:
+                oldPassword:
+                  type: string
+                  format: password
+                  example: "OldPass123!"
+                newPassword:
+                  type: string
+                  format: password
+                  minLength: 12
+                  example: "NewPass456!"
+      responses:
+        '200':
+          description: Password changed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Password changed successfully"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Old password incorrect
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/password-update:
+    post:
+      tags:
+        - Authentication
+      summary: Update password via reset token
+      description: Set new password using reset token from email
+      operationId: updatePasswordWithToken
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+                - newPassword
+              properties:
+                token:
+                  type: string
+                  description: Reset token from email
+                newPassword:
+                  type: string
+                  format: password
+                  minLength: 12
+      responses:
+        '200':
+          description: Password updated successfully
+        '400':
+          description: Invalid or expired token
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/resend-verification:
+    post:
+      tags:
+        - Authentication
+      summary: Resend verification email
+      description: Resend email verification link
+      operationId: resendVerification
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Verification email sent
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/check-email-available:
+    post:
+      tags:
+        - Authentication
+      summary: Check if email is available
+      description: Check if email can be used for new account
+      operationId: checkEmailAvailable
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Email availability check result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  available:
+                    type: boolean
+                    example: true
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ==========================================
+  # OKR ENDPOINTS
+  # ==========================================
+
+  /okrs:
+    get:
+      tags:
+        - OKRs
+      summary: List OKRs
+      description: |
+        Get list of OKRs with optional filters.
+        Results filtered by user's role and access level.
+      operationId: listOKRs
+      parameters:
+        - $ref: '#/components/parameters/RoleIdParam'
+        - $ref: '#/components/parameters/YearParam'
+        - $ref: '#/components/parameters/QuarterParam'
+        - $ref: '#/components/parameters/StatusParam'
+        - name: expand
+          in: query
+          description: Include nested components
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: OKRs retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OKR'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags:
+        - OKRs
+      summary: Create new OKR
+      description: |
+        Create new OKR (admin only).
+        Automatically calculates deadline_at based on quarter + config.
+      operationId: createOKR
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OKRCreateRequest'
+      responses:
+        '201':
+          description: OKR created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OKR'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          description: Business logic error (e.g., weights don't sum to 100%)
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /okrs/{id}:
+    get:
+      tags:
+        - OKRs
+      summary: Get single OKR
+      description: Get OKR by ID with nested components
+      operationId: getOKR
+      parameters:
+        - $ref: '#/components/parameters/OKRIdParam'
+      responses:
+        '200':
+          description: OKR retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OKR'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    put:
+      tags:
+        - OKRs
+      summary: Update OKR
+      description: |
+        Update OKR (admin only).
+        Cannot update after deadline unless deadline_missed reset.
+      operationId: updateOKR
+      parameters:
+        - $ref: '#/components/parameters/OKRIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                okr_title:
+                  type: string
+                description:
+                  type: string
+                weight:
+                  type: integer
+                status:
+                  type: integer
+                tags:
+                  type: string
+      responses:
+        '200':
+          description: OKR updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OKR'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Cannot edit after deadline or insufficient permissions
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      tags:
+        - OKRs
+      summary: Archive OKR
+      description: |
+        Soft delete OKR (sets status=3 archived).
+        Admin only. Cannot delete if has approved submissions.
+      operationId: archiveOKR
+      parameters:
+        - $ref: '#/components/parameters/OKRIdParam'
+      responses:
+        '204':
+          description: OKR archived successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: Cannot archive OKR with approved submissions
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /okrs/{id}/restore:
+    post:
+      tags:
+        - OKRs
+      summary: Restore archived OKR
+      description: Restore previously archived OKR (admin only)
+      operationId: restoreOKR
+      parameters:
+        - $ref: '#/components/parameters/OKRIdParam'
+      responses:
+        '200':
+          description: OKR restored successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OKR'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ==========================================
+  # KPI COMPONENT ENDPOINTS
+  # ==========================================
+
+  /kpi-components:
+    get:
+      tags:
+        - KPI Components
+      summary: List KPI components
+      description: Get list of KPI components with optional filters
+      operationId: listKPIComponents
+      parameters:
+        - name: okr_id
+          in: query
+          description: Filter by OKR ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Components retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/KPIComponent'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags:
+        - KPI Components
+      summary: Create KPI component
+      description: |
+        Create new KPI component (admin only).
+        Component weights must sum to 100% within parent OKR.
+      operationId: createKPIComponent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KPIComponentCreateRequest'
+      responses:
+        '201':
+          description: Component created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KPIComponent'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          description: Component weights don't sum to 100%
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                type: "https://api.kpi-platform.com/errors/weight-validation"
+                title: "Weight Validation Error"
+                status: 422
+                detail: "Component weights sum to 110%. Must equal 100%."
+                instance: "/api/kpi-components"
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /kpi-components/{id}:
+    put:
+      tags:
+        - KPI Components
+      summary: Update KPI component
+      description: Update component (admin only). Weight changes validated.
+      operationId: updateKPIComponent
+      parameters:
+        - $ref: '#/components/parameters/ComponentIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                component_name:
+                  type: string
+                component_weight:
+                  type: integer
+                target_value:
+                  type: number
+                counting_method:
+                  type: integer
+      responses:
+        '200':
+          description: Component updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KPIComponent'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: Weight validation failed
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    delete:
+      tags:
+        - KPI Components
+      summary: Archive KPI component
+      description: Soft delete component (admin only)
+      operationId: archiveKPIComponent
+      parameters:
+        - $ref: '#/components/parameters/ComponentIdParam'
+      responses:
+        '204':
+          description: Component archived successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: Cannot archive if breaks 100% weight rule
+        '500':
+          $ref: '#/components/responses/InternalServerError'

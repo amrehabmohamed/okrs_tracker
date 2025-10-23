@@ -1,6 +1,13 @@
 import express from 'express';
 import * as okrController from '../controllers/okrController';
 import { authenticate, requireAdmin } from '../middleware/auth';
+import { validate } from '../middleware/validate';
+import { 
+  createOKRSchema, 
+  updateOKRSchema, 
+  listOKRsQuerySchema,
+  okrIdParamSchema
+} from '../validation/schemas';
 
 const router = express.Router();
 
@@ -13,13 +20,13 @@ const router = express.Router();
  * GET /api/okrs - List OKRs with filters
  * Query params: role_id, year, quarter, status, tags, limit, offset
  */
-router.get('/', authenticate, requireAdmin, okrController.listOKRs);
+router.get('/', authenticate, requireAdmin, validate({ query: listOKRsQuerySchema }), okrController.listOKRs);
 
 /**
  * POST /api/okrs - Create new OKR
  * Body: CreateOKRInput
  */
-router.post('/', authenticate, requireAdmin, okrController.createOKR);
+router.post('/', authenticate, requireAdmin, validate({ body: createOKRSchema }), okrController.createOKR);
 
 /**
  * GET /api/okrs/weight-sum/:role_id/:year/:quarter - Get current weight sum
@@ -31,20 +38,20 @@ router.get('/weight-sum/:role_id/:year/:quarter', authenticate, requireAdmin, ok
  * Params: id (UUID)
  * Query: include_archived (boolean)
  */
-router.get('/:id', authenticate, requireAdmin, okrController.getOKR);
+router.get('/:id', authenticate, requireAdmin, validate({ params: okrIdParamSchema }), okrController.getOKR);
 
 /**
  * PUT /api/okrs/:id - Update OKR
  * Params: id (UUID)
  * Body: UpdateOKRInput
  */
-router.put('/:id', authenticate, requireAdmin, okrController.updateOKR);
+router.put('/:id', authenticate, requireAdmin, validate({ params: okrIdParamSchema, body: updateOKRSchema }), okrController.updateOKR);
 
 /**
  * DELETE /api/okrs/:id - Archive (soft delete) OKR
  * Params: id (UUID)
  * Body: { reason?: string }
  */
-router.delete('/:id', authenticate, requireAdmin, okrController.deleteOKR);
+router.delete('/:id', authenticate, requireAdmin, validate({ params: okrIdParamSchema }), okrController.deleteOKR);
 
 export default router;
