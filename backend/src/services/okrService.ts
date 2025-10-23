@@ -54,7 +54,7 @@ export async function createOKR(
 
   // Step 2: Check for duplicate OKR number (idempotency)
   const { data: existing } = await supabase
-    .from('OKRs')
+    .from('okrs')
     .select('id, okr_title, status')
     .eq('role_id', input.role_id)
     .eq('year', input.year)
@@ -86,7 +86,7 @@ export async function createOKR(
 
   // Step 5: Insert OKR
   const { data: okr, error } = await supabase
-    .from('OKRs')
+    .from('okrs')
     .insert({
       role_id: input.role_id,
       year: input.year,
@@ -199,7 +199,7 @@ export async function updateOKR(
   if (input.tags !== undefined) updateData.tags = input.tags;
 
   const { data: updatedOKR, error: updateError } = await supabase
-    .from('OKRs')
+    .from('okrs')
     .update(updateData)
     .eq('id', okr_id)
     .select()
@@ -252,7 +252,7 @@ export async function deleteOKR(
 ): Promise<OKR> {
   // Step 1: Verify OKR exists
   const { data: existingOKR, error: fetchError } = await supabase
-    .from('OKRs')
+    .from('okrs')
     .select('*')
     .eq('id', okr_id)
     .single();
@@ -267,7 +267,7 @@ export async function deleteOKR(
 
   // Step 2: Archive OKR (soft delete)
   const { data: archivedOKR, error: archiveError } = await supabase
-    .from('OKRs')
+    .from('okrs')
     .update({ 
       status: 3, // archived
       updated_at: new Date().toISOString()
@@ -341,7 +341,7 @@ export async function listOKRs(
 
   // Build query
   let query = supabase
-    .from('OKRs')
+    .from('okrs')
     .select('*', { count: 'exact' });
 
   // Apply filters
@@ -404,7 +404,7 @@ export async function getOKRWithComponents(
 ): Promise<OKR & { components: any[] }> {
   // Get OKR
   const { data: okr, error: okrError } = await supabase
-    .from('OKRs')
+    .from('okrs')
     .select('*')
     .eq('id', okr_id)
     .single();
@@ -415,7 +415,7 @@ export async function getOKRWithComponents(
 
   // Get components for this OKR
   let componentsQuery = supabase
-    .from('KPI_Components')
+    .from('kpi_components')
     .select('*')
     .eq('okr_id', okr_id)
     .order('sort_order', { ascending: true });
@@ -454,7 +454,7 @@ export async function getOKRByNumber(
   okr_number: number
 ): Promise<OKR | null> {
   const { data: okr, error } = await supabase
-    .from('OKRs')
+    .from('okrs')
     .select('*')
     .eq('role_id', role_id)
     .eq('year', year)

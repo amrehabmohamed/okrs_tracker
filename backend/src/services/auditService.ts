@@ -36,7 +36,7 @@ export async function logAudit(params: AuditLogParams): Promise<void> {
 
   try {
     const { error } = await supabase
-      .from('Audit_Log')
+      .from('audit_log')
       .insert({
         entity_type,
         entity_id,

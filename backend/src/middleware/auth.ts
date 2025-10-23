@@ -35,7 +35,7 @@ export const authenticate = async (
 
     // Get user details from Users table
     const { data: userData, error: userError } = await supabase
-      .from('Users')
+      .from('"Users"')
       .select('id, email, role, team_id, is_manager')
       .eq('id', user.id)
       .single();

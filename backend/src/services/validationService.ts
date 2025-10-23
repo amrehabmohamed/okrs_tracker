@@ -24,7 +24,7 @@ export async function validateOKRWeights(
 ): Promise<void> {
   // Build query to get all OKRs in this role/year/quarter
   let query = supabase
-    .from('OKRs')
+    .from('okrs')
     .select('id, weight, okr_title')
     .eq('role_id', role_id)
     .eq('year', year)
@@ -88,7 +88,7 @@ export async function validateComponentWeights(
 ): Promise<void> {
   // Build query to get all components for this OKR
   let query = supabase
-    .from('KPI_Components')
+    .from('kpi_components')
     .select('id, component_weight, component_name')
     .eq('okr_id', okr_id);
 
