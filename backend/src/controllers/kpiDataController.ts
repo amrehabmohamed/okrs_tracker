@@ -21,91 +21,81 @@
  * - 500: Internal Server Error (unexpected errors)
  */
 
-import { Response, NextFunction } from 'express';
-import { AuthRequest } from '../middleware/auth';
+import { Request, Response, NextFunction } from 'express';
 import { CountFormInput } from '../types/kpiData';
 import { submitCountForm, getUserKPIData } from '../services/kpiDataService';
 import { AppError } from '../middleware/errorHandler';
+import { ErrorCode } from '../types/errors';
 
 /**
- * Submit KPI data (count form for Sprint 4.1)
+ * Submit KPI data - auto-routes by measurement type
  *
  * POST /api/kpi-data
- *
- * Request body:
- * {
- *   "kpi_component_id": "uuid",
- *   "value": 2,
- *   "evidence_link": "https://...",
- *   "notes": "Optional notes",
- *   "data_source": 0
- * }
- *
- * Success response (201):
- * {
- *   "success": true,
- *   "message": "Submission created successfully and pending approval",
- *   "data": { ...enriched submission... }
- * }
- *
- * Error responses:
- * - 400: Validation error with field-level details
- * - 403: Deadline passed or access denied
- * - 404: Component not found
- * - 409: Pending submission already exists
- *
- * @param req - Express request with authenticated user
- * @param res - Express response
- * @param next - Express next function
  */
 export async function submitKPIData(
-  req: AuthRequest,
+  req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> {
   try {
-    // Extract user from auth middleware
     if (!req.user) {
-      throw new AppError('Authentication required', 401);
+      throw new AppError(ErrorCode.AUTH_TOKEN_MISSING, 'Authentication required');
     }
 
     const user_id = req.user.id;
     const user_role = req.user.role;
 
-    // Validate request body exists
     if (!req.body || Object.keys(req.body).length === 0) {
-      throw new AppError('Request body is required', 400);
+      throw new AppError(ErrorCode.VALIDATION_REQUIRED_FIELD, 'Request body is required');
     }
 
-    // Extract and validate required fields
-    const input: CountFormInput = {
-      kpi_component_id: req.body.kpi_component_id,
-      value: req.body.value,
-      evidence_link: req.body.evidence_link,
-      notes: req.body.notes,
-      data_source: req.body.data_source
-    };
-
-    // Basic type validation before passing to service
-    if (!input.kpi_component_id) {
-      throw new AppError('kpi_component_id is required', 400);
+    const kpi_component_id = req.body.kpi_component_id;
+    if (!kpi_component_id) {
+      throw new AppError(ErrorCode.VALIDATION_REQUIRED_FIELD, 'kpi_component_id is required');
     }
 
-    if (input.value === undefined || input.value === null) {
-      throw new AppError('value is required', 400);
+    // Fetch component to determine measurement type
+    const { getComponentWithOKR } = await import('../services/kpiDataValidationService');
+    const component = await getComponentWithOKR(kpi_component_id);
+
+    // Route to appropriate service based on measurement_type
+    let submission;
+
+    switch (component.measurement_type) {
+      case 0: // Count
+        const { submitCountForm } = await import('../services/kpiDataService');
+        submission = await submitCountForm(user_id, user_role, req.body);
+        break;
+
+      case 1: // Percentage
+        const { submitPercentageForm } = await import('../services/kpiDataService');
+        submission = await submitPercentageForm(user_id, user_role, req.body);
+        break;
+
+      case 2: // Score
+        const { submitScoreForm } = await import('../services/kpiDataService');
+        submission = await submitScoreForm(user_id, user_role, req.body);
+        break;
+
+      case 3: // Boolean
+        const { submitBooleanForm } = await import('../services/kpiDataService');
+        submission = await submitBooleanForm(user_id, user_role, req.body);
+        break;
+
+      default:
+        throw new AppError(
+          ErrorCode.VALIDATION_INVALID_TYPE,
+          `Unsupported measurement type: ${component.measurement_type}. ` +
+          `Expected 0 (count), 1 (percentage), 2 (score), or 3 (boolean).`
+        );
     }
 
-    // Delegate to service layer
-    const submission = await submitCountForm(user_id, user_role, input);
-
-    // Return success response with 201 Created
     res.status(201).json({
       success: true,
       message: 'Submission created successfully and pending approval',
       data: submission
     });
   } catch (error) {
-    // Pass errors to error handler middleware
     next(error);
   }
 }
@@ -133,14 +123,14 @@ export async function submitKPIData(
  * @param next - Express next function
  */
 export async function getKPIData(
-  req: AuthRequest,
+  req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> {
   try {
     // Extract user from auth middleware
     if (!req.user) {
-      throw new AppError('Authentication required', 401);
+      throw new AppError(ErrorCode.AUTH_TOKEN_MISSING, 'Authentication required');
     }
 
     const user_id = req.user.id;
@@ -155,7 +145,10 @@ export async function getKPIData(
 
     // Validate status if provided
     if (filters.status !== undefined && ![0, 1, 2].includes(filters.status)) {
-      throw new AppError('status must be 0 (pending), 1 (approved), or 2 (rejected)', 400);
+      throw new AppError(
+        ErrorCode.VALIDATION_OUT_OF_RANGE,
+        'status must be 0 (pending), 1 (approved), or 2 (rejected)'
+      );
     }
 
     // Delegate to service layer
@@ -196,21 +189,21 @@ export async function getKPIData(
  * @param next - Express next function
  */
 export async function getSubmissionHistory(
-  req: AuthRequest,
+  req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> {
   try {
     // Extract user from auth middleware
     if (!req.user) {
-      throw new AppError('Authentication required', 401);
+      throw new AppError(ErrorCode.AUTH_TOKEN_MISSING, 'Authentication required');
     }
 
     const user_id = req.user.id;
     const component_id = req.params.component_id;
 
     if (!component_id) {
-      throw new AppError('component_id is required', 400);
+      throw new AppError(ErrorCode.VALIDATION_REQUIRED_FIELD, 'component_id is required');
     }
 
     // Get all submissions for this component

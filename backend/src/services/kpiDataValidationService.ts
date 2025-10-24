@@ -372,24 +372,284 @@ export async function getLatestVersionNumber(
 
 /**
  * Validates percentage form input (measurement_type = 1)
- * To be implemented in Sprint 4.2
+ *
+ * Rules:
+ * - numerator must be a number >= 0
+ * - denominator must be a number > 0 (no division by zero)
+ * - numerator should not be unreasonably high (sanity check)
+ * - evidence_link must be valid URL
+ * - evidence_link is required
+ * - notes optional, max 500 characters
+ * - notes sanitized for security
+ * - Percentage calculated as (numerator/denominator) * 100
+ * - Stored as DECIMAL(5,2) with standard rounding
+ *
+ * @param input - Percentage form data
+ * @throws ValidationError if validation fails
  */
 export function validatePercentageForm(input: PercentageFormInput): void {
-  throw new Error('Percentage form validation not yet implemented (Sprint 4.2)');
+  // Validate numerator exists
+  if (input.numerator === undefined || input.numerator === null) {
+    throw new ValidationError('numerator is required');
+  }
+
+  // Validate numerator is a number
+  if (typeof input.numerator !== 'number' || isNaN(input.numerator)) {
+    throw new ValidationError('numerator must be a valid number');
+  }
+
+  // Validate numerator is non-negative
+  if (input.numerator < 0) {
+    throw new ValidationError(`numerator must be greater than or equal to 0, received: ${input.numerator}`);
+  }
+
+  // Validate denominator exists
+  if (input.denominator === undefined || input.denominator === null) {
+    throw new ValidationError('denominator is required');
+  }
+
+  // Validate denominator is a number
+  if (typeof input.denominator !== 'number' || isNaN(input.denominator)) {
+    throw new ValidationError('denominator must be a valid number');
+  }
+
+  // Validate denominator is positive (no division by zero)
+  if (input.denominator <= 0) {
+    throw new ValidationError(
+      `denominator must be greater than 0 (division by zero not allowed), received: ${input.denominator}`
+    );
+  }
+
+  // Sanity check: numerator should not be unreasonably higher than denominator
+  // Allow up to 10x for legitimate overachievement, but flag suspicious data
+  if (input.numerator > input.denominator * 10) {
+    throw new ValidationError(
+      `numerator (${input.numerator}) is unreasonably high compared to denominator (${input.denominator}). ` +
+      `If this is correct, please verify your data. Maximum ratio allowed: 10:1.`
+    );
+  }
+
+  // Validate evidence_link exists
+  if (!input.evidence_link) {
+    throw new ValidationError('evidence_link is required');
+  }
+
+  // Validate evidence_link format
+  if (!isValidURL(input.evidence_link)) {
+    throw new ValidationError('evidence_link must be a valid URL (http:// or https://)');  
+  }
+
+  // Validate notes if provided
+  if (input.notes !== undefined && input.notes !== null) {
+    if (typeof input.notes !== 'string') {
+      throw new ValidationError('notes must be a string');
+    }
+
+    if (input.notes.length > 500) {
+      throw new ValidationError(`notes must not exceed 500 characters, received: ${input.notes.length} characters`);
+    }
+
+    // Sanitize notes (mutates input object intentionally)
+    input.notes = sanitizeInput(input.notes);
+  }
+
+  // Validate data_source if provided
+  if (input.data_source !== undefined && input.data_source !== null) {
+    if (![0, 1, 2].includes(input.data_source)) {
+      throw new ValidationError('data_source must be 0 (manual), 1 (jotform), or 2 (auto)');
+    }
+  }
+}
+
+/**
+ * Calculates percentage from numerator and denominator
+ * Rounds to 2 decimal places using standard rounding (ROUND_HALF_UP)
+ * 
+ * Examples:
+ * - calculatePercentage(8, 10) = 80.00
+ * - calculatePercentage(3, 7) = 42.86
+ * - calculatePercentage(15, 10) = 150.00 (overachievement allowed)
+ * - calculatePercentage(1, 3) = 33.33
+ *
+ * @param numerator - Completed items count
+ * @param denominator - Total items count
+ * @returns Percentage rounded to 2 decimal places
+ */
+export function calculatePercentage(numerator: number, denominator: number): number {
+  if (denominator === 0) {
+    throw new ValidationError('Cannot calculate percentage: denominator is zero');
+  }
+
+  const percentage = (numerator / denominator) * 100;
+  
+  // Round to 2 decimal places using standard rounding
+  // Math.round() implements ROUND_HALF_UP behavior
+  return Math.round(percentage * 100) / 100;
 }
 
 /**
  * Validates score form input (measurement_type = 2)
- * To be implemented in Sprint 4.3
+ *
+ * Rules:
+ * - score_value must be between 0.0 and 5.0 (inclusive)
+ * - score_value must have exactly 1 decimal place (3.5 valid, 3.55 invalid)
+ * - response_count must be integer > 0
+ * - evidence_link must be valid URL
+ * - evidence_link is required
+ * - notes optional, max 500 characters
+ * - data_source can be 0 (manual) or 1 (jotform)
+ *
+ * @param input - Score form data
+ * @throws ValidationError if validation fails
  */
 export function validateScoreForm(input: ScoreFormInput): void {
-  throw new Error('Score form validation not yet implemented (Sprint 4.3)');
+  // Validate score_value exists
+  if (input.score_value === undefined || input.score_value === null) {
+    throw new ValidationError('score_value is required');
+  }
+
+  // Validate score_value is a number
+  if (typeof input.score_value !== 'number' || isNaN(input.score_value)) {
+    throw new ValidationError('score_value must be a valid number');
+  }
+
+  // Validate score_value range (0.0 to 5.0)
+  if (input.score_value < 0 || input.score_value > 5) {
+    throw new ValidationError(
+      `score_value must be between 0.0 and 5.0, received: ${input.score_value}`
+    );
+  }
+
+  // Validate exactly 1 decimal place
+  // Multiply by 10 and check if result is integer
+  const multiplied = input.score_value * 10;
+  if (!Number.isInteger(multiplied)) {
+    throw new ValidationError(
+      `score_value must have exactly 1 decimal place (e.g., 3.5, not 3.55), received: ${input.score_value}`
+    );
+  }
+
+  // Validate response_count exists
+  if (input.response_count === undefined || input.response_count === null) {
+    throw new ValidationError('response_count is required');
+  }
+
+  // Validate response_count is a number
+  if (typeof input.response_count !== 'number' || isNaN(input.response_count)) {
+    throw new ValidationError('response_count must be a valid number');
+  }
+
+  // Validate response_count is positive integer
+  if (input.response_count <= 0) {
+    throw new ValidationError(
+      `response_count must be greater than 0, received: ${input.response_count}`
+    );
+  }
+
+  if (!Number.isInteger(input.response_count)) {
+    throw new ValidationError(
+      `response_count must be an integer, received: ${input.response_count}`
+    );
+  }
+
+  // Validate evidence_link exists
+  if (!input.evidence_link) {
+    throw new ValidationError('evidence_link is required');
+  }
+
+  // Validate evidence_link format
+  if (!isValidURL(input.evidence_link)) {
+    throw new ValidationError('evidence_link must be a valid URL (http:// or https://)');  
+  }
+
+  // Validate notes if provided
+  if (input.notes !== undefined && input.notes !== null) {
+    if (typeof input.notes !== 'string') {
+      throw new ValidationError('notes must be a string');
+    }
+
+    if (input.notes.length > 500) {
+      throw new ValidationError(
+        `notes must not exceed 500 characters, received: ${input.notes.length} characters`
+      );
+    }
+
+    // Sanitize notes
+    input.notes = sanitizeInput(input.notes);
+  }
+
+  // Validate data_source (score can be manual or jotform)
+  if (input.data_source !== undefined && input.data_source !== null) {
+    if (![0, 1].includes(input.data_source)) {
+      throw new ValidationError('data_source must be 0 (manual) or 1 (jotform) for score submissions');
+    }
+  }
 }
 
 /**
  * Validates boolean form input (measurement_type = 3)
- * To be implemented in Sprint 4.3
+ *
+ * Rules:
+ * - completed must be exactly 0 or 1 (integer, not boolean)
+ * - Rejects string "true"/"false" or boolean true/false
+ * - evidence_link must be valid URL
+ * - evidence_link is required
+ * - notes optional, max 500 characters
+ *
+ * @param input - Boolean form data
+ * @throws ValidationError if validation fails
  */
 export function validateBooleanForm(input: BooleanFormInput): void {
-  throw new Error('Boolean form validation not yet implemented (Sprint 4.3)');
+  // Validate completed exists
+  if (input.completed === undefined || input.completed === null) {
+    throw new ValidationError('completed is required');
+  }
+
+  // Validate completed is a number (not boolean)
+  if (typeof input.completed !== 'number') {
+    throw new ValidationError(
+      `completed must be a number (0 or 1), not a ${typeof input.completed}. ` +
+      `Received: ${input.completed}`
+    );
+  }
+
+  // Validate completed is exactly 0 or 1
+  if (input.completed !== 0 && input.completed !== 1) {
+    throw new ValidationError(
+      `completed must be exactly 0 or 1, received: ${input.completed}`
+    );
+  }
+
+  // Validate evidence_link exists
+  if (!input.evidence_link) {
+    throw new ValidationError('evidence_link is required');
+  }
+
+  // Validate evidence_link format
+  if (!isValidURL(input.evidence_link)) {
+    throw new ValidationError('evidence_link must be a valid URL (http:// or https://)');  
+  }
+
+  // Validate notes if provided
+  if (input.notes !== undefined && input.notes !== null) {
+    if (typeof input.notes !== 'string') {
+      throw new ValidationError('notes must be a string');
+    }
+
+    if (input.notes.length > 500) {
+      throw new ValidationError(
+        `notes must not exceed 500 characters, received: ${input.notes.length} characters`
+      );
+    }
+
+    // Sanitize notes
+    input.notes = sanitizeInput(input.notes);
+  }
+
+  // Validate data_source if provided
+  if (input.data_source !== undefined && input.data_source !== null) {
+    if (![0, 1, 2].includes(input.data_source)) {
+      throw new ValidationError('data_source must be 0 (manual), 1 (jotform), or 2 (auto)');
+    }
+  }
 }

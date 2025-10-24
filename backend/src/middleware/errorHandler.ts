@@ -170,3 +170,42 @@ export function createSuccessResponse<T>(
     ...(metadata && { metadata })
   };
 }
+
+/**
+ * Convenience error classes for common HTTP errors
+ */
+export class ValidationError extends AppError {
+  constructor(message: string, metadata?: ErrorMetadata, errors?: ValidationErrorDetail[]) {
+    super(ErrorCode.VALIDATION_FAILED, message, metadata, errors);
+  }
+}
+
+export class AuthenticationError extends AppError {
+  constructor(message: string = 'Authentication required') {
+    super(ErrorCode.AUTH_CREDENTIALS_INVALID, message);
+  }
+}
+
+export class AuthorizationError extends AppError {
+  constructor(message: string = 'Access denied') {
+    super(ErrorCode.AUTHZ_INSUFFICIENT_PERMISSIONS, message);
+  }
+}
+
+export class NotFoundError extends AppError {
+  constructor(message: string) {
+    super(ErrorCode.RESOURCE_NOT_FOUND, message);
+  }
+}
+
+export class ConflictError extends AppError {
+  constructor(message: string) {
+    super(ErrorCode.RESOURCE_CONFLICT, message);
+  }
+}
+
+export class RateLimitError extends AppError {
+  constructor(message: string = 'Too many requests') {
+    super(ErrorCode.RATE_LIMIT_EXCEEDED, message);
+  }
+}

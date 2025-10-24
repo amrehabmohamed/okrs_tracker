@@ -235,7 +235,16 @@ export function validateOKRInput(data: any): void {
   }
 
   if (errors.length > 0) {
-    throw new ValidationError('Invalid OKR data', { errors });
+    const validationErrors = errors.map(error => {
+      // Extract field name from error message (e.g., "role_id is required" -> "role_id")
+      const fieldMatch = error.match(/^(\w+)/);
+      return {
+        field: fieldMatch ? fieldMatch[1] : 'unknown',
+        message: error,
+        code: 'VALIDATION_FAILED'
+      };
+    });
+    throw new ValidationError('Invalid OKR data', undefined, validationErrors);
   }
 }
 
@@ -284,6 +293,15 @@ export function validateComponentInput(data: any): void {
   }
 
   if (errors.length > 0) {
-    throw new ValidationError('Invalid component data', { errors });
+    const validationErrors = errors.map(error => {
+      // Extract field name from error message (e.g., "component_name is required" -> "component_name")
+      const fieldMatch = error.match(/^(\w+)/);
+      return {
+        field: fieldMatch ? fieldMatch[1] : 'unknown',
+        message: error,
+        code: 'VALIDATION_FAILED'
+      };
+    });
+    throw new ValidationError('Invalid component data', undefined, validationErrors);
   }
 }

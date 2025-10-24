@@ -3,24 +3,14 @@ import { asyncHandler } from '../middleware/errorHandler';
 import * as componentService from '../services/kpiComponentService';
 import { CreateComponentInput, UpdateComponentInput } from '../types/okr';
 
-// Extend Request type inline
-interface AuthRequest extends Request {
-  user?: {
-    id: string;
-    email: string;
-    is_manager: number;
-    role: string;
-    team_id: number;
-  };
-}
-
 /**
  * KPI Component Controller - Thin request/response layer
+ * Note: Request.user type is defined globally in types/express.d.ts
  */
 
 export const createComponent = asyncHandler(async (req: Request, res: Response) => {
   const input: CreateComponentInput = req.body;
-  const created_by = (req as AuthRequest).user!.id;
+  const created_by = req.user!.id;
 
   const component = await componentService.createComponent(input, created_by);
 
@@ -58,7 +48,7 @@ export const getComponent = asyncHandler(async (req: Request, res: Response) => 
 export const updateComponent = asyncHandler(async (req: Request, res: Response) => {
   const component_id = req.params.id;
   const input: UpdateComponentInput = req.body;
-  const updated_by = (req as AuthRequest).user!.id;
+  const updated_by = req.user!.id;
 
   const component = await componentService.updateComponent(component_id, input, updated_by);
 
@@ -70,7 +60,7 @@ export const updateComponent = asyncHandler(async (req: Request, res: Response) 
 
 export const deleteComponent = asyncHandler(async (req: Request, res: Response) => {
   const component_id = req.params.id;
-  const deleted_by = (req as AuthRequest).user!.id;
+  const deleted_by = req.user!.id;
   const reason = req.body.reason;
 
   const component = await componentService.deleteComponent(component_id, deleted_by, reason);

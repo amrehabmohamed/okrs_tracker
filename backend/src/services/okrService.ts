@@ -169,8 +169,7 @@ export async function updateOKR(
   // Step 2: Check deadline
   if (existingOKR.deadline_missed) {
     throw new ValidationError(
-      'Cannot update OKR after deadline has passed',
-      { deadline_at: existingOKR.deadline_at }
+      `Cannot update OKR after deadline has passed (deadline was ${existingOKR.deadline_at})`
     );
   }
 

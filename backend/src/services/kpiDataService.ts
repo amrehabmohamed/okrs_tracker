@@ -324,22 +324,239 @@ export async function getUserKPIData(
 }
 
 /**
- * Placeholder for percentage form submission (Sprint 4.2)
+ * Submit percentage form data (measurement_type = 1)
+ *
+ * Flow:
+ * 1. Validate form inputs (numerator, denominator, evidence_link)
+ * 2. Verify component exists and user has access
+ * 3. Check measurement type matches (must be percentage)
+ * 4. Check deadline hasn't passed
+ * 5. Check for existing pending submission
+ * 6. Calculate percentage: (numerator/denominator) * 100
+ * 7. Insert into User_KPI_Data with numerator, denominator, and calculated percentage
+ * 8. Return enriched response with component/OKR details
+ *
+ * @param user_id - Authenticated user's UUID
+ * @param user_role - User's role name
+ * @param input - Percentage form submission data
+ * @returns Enriched submission response
+ * @throws ValidationError - Invalid input data
+ * @throws ForbiddenError - Access denied or deadline passed
+ * @throws NotFoundError - Component doesn't exist
+ * @throws ConflictError - Duplicate pending submission
  */
-export async function submitPercentageForm(): Promise<KPIDataResponse> {
-  throw new AppError('Percentage form submission not yet implemented (Sprint 4.2)', 501);
+export async function submitPercentageForm(
+  user_id: string,
+  user_role: string,
+  input: PercentageFormInput
+): Promise<KPIDataResponse> {
+  try {
+    // Step 1: Validate form inputs
+    validatePercentageForm(input);
+
+    // Step 2: Verify component exists and user has access
+    const component = await validateComponentOwnership(
+      user_id,
+      user_role,
+      input.kpi_component_id
+    );
+
+    // Step 3: Verify measurement type is percentage (1)
+    validateMeasurementType(component, MeasurementType.PERCENTAGE);
+
+    // Step 4: Check deadline hasn't passed
+    checkDeadline(component);
+
+    // Step 5: Check for existing pending submission
+    const hasPending = await hasPendingSubmission(user_id, input.kpi_component_id);
+    if (hasPending) {
+      throw new ConflictError(
+        'You already have a pending submission for this component. ' +
+        'Wait for manager approval before submitting again.'
+      );
+    }
+
+    // Step 6: Calculate percentage
+    const { calculatePercentage } = await import('./kpiDataValidationService');
+    const calculatedPercentage = calculatePercentage(input.numerator, input.denominator);
+
+    // Step 7: Prepare submission data
+    const submissionData = {
+      user_id: user_id,
+      okr_id: component.okr_id, // Denormalized for reporting efficiency
+      kpi_component_id: input.kpi_component_id,
+      value: calculatedPercentage, // Store calculated percentage as primary value
+      numerator: input.numerator, // Store for audit trail
+      denominator: input.denominator, // Store for audit trail
+      evidence_link: input.evidence_link,
+      notes: input.notes || null,
+      data_source: input.data_source || 0, // Default to manual
+      status: 0, // Pending approval
+      version_number: 1, // Hardcoded for Sprint 4.1, will be dynamic in Sprint 4.4
+      submitted_date: new Date().toISOString()
+    };
+
+    // Step 8: Insert into database
+    const { data: submission, error: insertError } = await supabase
+      .from('"User_KPI_Data"')
+      .insert(submissionData)
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error('Database insert error:', insertError);
+
+      // Check for unique constraint violation
+      if (insertError.code === '23505') {
+        throw new ConflictError(
+          'A submission with this version number already exists. This should not happen.'
+        );
+      }
+
+      throw new AppError('Failed to create submission', 500);
+    }
+
+    if (!submission) {
+      throw new AppError('Submission created but no data returned', 500);
+    }
+
+    // Step 9: Return enriched response
+    return enrichSubmissionResponse(submission, component);
+  } catch (error) {
+    // Re-throw known errors
+    if (error instanceof AppError) {
+      throw error;
+    }
+
+    // Log unexpected errors
+    console.error('Unexpected error in submitPercentageForm:', error);
+    throw new AppError('An unexpected error occurred while processing your submission', 500);
+  }
 }
 
 /**
- * Placeholder for score form submission (Sprint 4.3)
+ * Submit score form data (measurement_type = 2)
+ *
+ * @param user_id - Authenticated user's UUID
+ * @param user_role - User's role name
+ * @param input - Score form submission data
+ * @returns Enriched submission response
  */
-export async function submitScoreForm(): Promise<KPIDataResponse> {
-  throw new AppError('Score form submission not yet implemented (Sprint 4.3)', 501);
+export async function submitScoreForm(
+  user_id: string,
+  user_role: string,
+  input: ScoreFormInput
+): Promise<KPIDataResponse> {
+  try {
+    validateScoreForm(input);
+    const component = await validateComponentOwnership(user_id, user_role, input.kpi_component_id);
+    validateMeasurementType(component, MeasurementType.SCORE);
+    checkDeadline(component);
+
+    const hasPending = await hasPendingSubmission(user_id, input.kpi_component_id);
+    if (hasPending) {
+      throw new ConflictError(
+        'You already have a pending submission for this component. Wait for approval before submitting again.'
+      );
+    }
+
+    const submissionData = {
+      user_id,
+      okr_id: component.okr_id,
+      kpi_component_id: input.kpi_component_id,
+      value: input.score_value,
+      response_count: input.response_count,
+      evidence_link: input.evidence_link,
+      notes: input.notes || null,
+      data_source: input.data_source || 0,
+      status: 0,
+      version_number: 1,
+      submitted_date: new Date().toISOString()
+    };
+
+    const { data: submission, error: insertError } = await supabase
+      .from('"User_KPI_Data"')
+      .insert(submissionData)
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error('Database insert error:', insertError);
+      if (insertError.code === '23505') {
+        throw new ConflictError('A submission with this version number already exists.');
+      }
+      throw new AppError('Failed to create submission', 500);
+    }
+
+    if (!submission) throw new AppError('Submission created but no data returned', 500);
+
+    return enrichSubmissionResponse(submission, component);
+  } catch (error) {
+    if (error instanceof AppError) throw error;
+    console.error('Unexpected error in submitScoreForm:', error);
+    throw new AppError('An unexpected error occurred while processing your submission', 500);
+  }
 }
 
 /**
- * Placeholder for boolean form submission (Sprint 4.3)
+ * Submit boolean form data (measurement_type = 3)
+ *
+ * @param user_id - Authenticated user's UUID
+ * @param user_role - User's role name
+ * @param input - Boolean form submission data
+ * @returns Enriched submission response
  */
-export async function submitBooleanForm(): Promise<KPIDataResponse> {
-  throw new AppError('Boolean form submission not yet implemented (Sprint 4.3)', 501);
+export async function submitBooleanForm(
+  user_id: string,
+  user_role: string,
+  input: BooleanFormInput
+): Promise<KPIDataResponse> {
+  try {
+    validateBooleanForm(input);
+    const component = await validateComponentOwnership(user_id, user_role, input.kpi_component_id);
+    validateMeasurementType(component, MeasurementType.BOOLEAN);
+    checkDeadline(component);
+
+    const hasPending = await hasPendingSubmission(user_id, input.kpi_component_id);
+    if (hasPending) {
+      throw new ConflictError(
+        'You already have a pending submission for this component. Wait for approval before submitting again.'
+      );
+    }
+
+    const submissionData = {
+      user_id,
+      okr_id: component.okr_id,
+      kpi_component_id: input.kpi_component_id,
+      value: input.completed,
+      evidence_link: input.evidence_link,
+      notes: input.notes || null,
+      data_source: input.data_source || 0,
+      status: 0,
+      version_number: 1,
+      submitted_date: new Date().toISOString()
+    };
+
+    const { data: submission, error: insertError } = await supabase
+      .from('"User_KPI_Data"')
+      .insert(submissionData)
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error('Database insert error:', insertError);
+      if (insertError.code === '23505') {
+        throw new ConflictError('A submission with this version number already exists.');
+      }
+      throw new AppError('Failed to create submission', 500);
+    }
+
+    if (!submission) throw new AppError('Submission created but no data returned', 500);
+
+    return enrichSubmissionResponse(submission, component);
+  } catch (error) {
+    if (error instanceof AppError) throw error;
+    console.error('Unexpected error in submitBooleanForm:', error);
+    throw new AppError('An unexpected error occurred while processing your submission', 500);
+  }
 }
