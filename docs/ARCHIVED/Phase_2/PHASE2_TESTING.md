@@ -1,7 +1,7 @@
 # Phase 2: Auth Testing Checklist
 
 ## Prerequisites
-- Supabase project configured (see SUPABASE_AUTH_SETUP.md)
+- Supabase project configured (see ../../SETUP/supabase-auth-setup.md)
 - Backend running on http://localhost:3000
 - First admin user created and approved
 

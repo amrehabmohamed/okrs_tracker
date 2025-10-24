@@ -9,10 +9,10 @@
 
 - **[Project Overview](project/overview.md)** - What and why
 - **[PRD (BDD Format)](project/requirements.md)** - Complete requirements
-- **[Architecture](concepts/architecture.md)** - Technical design
+- **[Architecture](ARCHITECTURE/overview.md)** - Technical design
 - **[Database Schema](concepts/database-schema.md)** - Data model
-- **[API Reference](api/)** - Endpoint docs
-- **[Local Setup](guides/local-setup.md)** - Full setup guide
+- **[API Reference](API/)** - Endpoint docs
+- **[Local Setup](SETUP/local-setup.md)** - Full setup guide
 - **[Authentication Flow](concepts/authentication-flow.md)** - Auth implementation details
 - **[Business Logic](concepts/business-logic.md)** - Design decisions explained
 
@@ -29,7 +29,7 @@ cd ../frontend && npm install
 ```
 
 ### 2. Configure Environment (10 min)
-Follow [Supabase Auth Setup](guides/supabase-auth-setup.md)
+Follow [Supabase Auth Setup](SETUP/supabase-auth-setup.md)
 
 Create `backend/.env`:
 ```
@@ -63,9 +63,9 @@ Run [Sprint 3 Test Suite](TESTING/SPRINT_3_TEST_SUITE.md) in Supabase SQL Editor
 - **Timeline:** 8 weeks total, currently week 3
 
 ### Review Deliverables
-1. [Phase 3 Sprint Guide](PHASES/PHASE_3_SPRINT_GUIDE.md) - Progress tracking
-2. [PRD](PRD.md) - All requirements in BDD format
-3. [Roadmap](ROADMAP.md) - Full 8-phase plan
+1. [Phase 3 Sprint Guide](GUIDES/implementation/phase-3-sprint-guide.md) - Progress tracking
+2. [Requirements (PRD)](project/requirements.md) - All acceptance criteria in BDD format
+3. [Roadmap](project/roadmap.md) - Full 8-phase plan
 
 ---
 
@@ -93,6 +93,6 @@ OKRs Tracker/
 ## Need Help?
 
 **Documentation Issue:** Check [README.md](README.md) index  
-**Setup Problem:** Follow [Local Dev Setup](GUIDES/LOCAL_DEV_SETUP.md)  
+**Setup Problem:** Follow [Local Dev Setup](SETUP/local-setup.md)  
 **API Question:** See [API Reference](API/)  
-**Understanding Requirements:** Read [PRD](PRD.md)
+**Understanding Requirements:** Read [Requirements](project/requirements.md)

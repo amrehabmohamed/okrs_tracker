@@ -9,33 +9,57 @@
 
 | Section | Description | When to Use |
 |---------|-------------|-------------|
-| [API](#api-reference) | Endpoint documentation | Building integrations, testing APIs |
-| [Setup](#setup-guides) | Initial configuration | New developer onboarding |
-| [Testing](#testing-guides) | Test suites and validation | QA, before deployments |
-| [Phase Tracking](#phase-tracking) | Sprint progress | Project management, status updates |
-| [Archived](#archived-documentation) | Historical docs | Reference only |
+| [Strategic Docs](#strategic-docs) | Roadmap, technical plan, PRD | Exec syncs, planning sessions |
+| [Architecture](#architecture) | System-wide design source of truth | Platform decisions, onboarding |
+| [API](#api-reference) | Endpoint documentation | Integrations, backend work |
+| [Setup](#setup--onboarding) | Environment and workflow setup | New developer onboarding |
+| [Testing](#testing-guides) | Test suites and validation status | QA, release readiness |
+| [Operational Guides](#operational-guides) | Sprint playbooks & delivery guides | Daily execution, handoffs |
+| [Archived](#archived-documentation) | Historical reports & closed sprints | Reference only |
+
+---
+
+## Strategic Docs
+
+- **[Implementation Roadmap](implementation-roadmap.md)** - Phase-by-phase delivery milestones
+- **[Technical Implementation Plan](technical-implementation-plan.md)** - System design and build order
+- **[Project Overview](project/overview.md)** - Product context and goals
+- **[Requirements (PRD)](project/requirements.md)** - Canonical acceptance criteria
+- **[Product Roadmap](project/roadmap.md)** - Big-picture sequencing and release targets
+
+## Architecture
+
+- **[System Architecture Overview](ARCHITECTURE/overview.md)** - Current platform blueprint (SSoT)
+- **[Authentication Flow](concepts/authentication-flow.md)** - Identity and auth stack
+- **[Business Logic](concepts/business-logic.md)** - KPI/OKR domain model decisions
+- **[Database Schema](concepts/database-schema.md)** - Entity relationships and constraints
 
 ---
 
 ## API Reference
 
-Complete API documentation for all endpoints.
+Complete API documentation for all endpoints. The OpenAPI specification drives generated clients.
 
 ### Active APIs
-- **[OKRs API](API/API_OKRs.md)** - OKR CRUD operations, weight validation
-- **[KPI Components API](API/API_KPI_COMPONENTS.md)** - Component management, measurement types
+- **[OKRs](API/okrs.md)** - CRUD operations, weight validation
+- **[KPI Components](API/kpi-components.md)** - Component lifecycle and rules
+- **[KPI Data](API/kpi-data.md)** - Phase 4 submission contract (in progress)
+- **[Rate Limiting](API/rate-limiting.md)** - Enforcement strategy per resource
 
-### Future APIs (Phase 4+)
-- User KPI Data (data submission)
-- Tasks & Approvals (manager workflow)
-- Reports & Analytics (progress tracking)
+### Supporting Assets
+- **[Authentication](API/authentication.md)** - JWT, Supabase policies, RLS alignment
+- **[Error Handling](API/errors.md)** - RFC7807 catalog and response shapes
+- **[Quick Reference](API/QUICK_REFERENCE.md)** - Endpoint matrix for fast lookups
+- **[OpenAPI Specification](API/openapi.yaml)** - Machine-readable schema for tooling
 
 ---
 
-## Setup Guides
+## Setup & Onboarding
 
 ### Initial Setup
-- **[Supabase Authentication Setup](SETUP/SUPABASE_AUTH_SETUP.md)** - Configure auth, create admin users
+- **[Getting Started](GETTING_STARTED.md)** - Fast path to a working environment
+- **[Supabase Authentication Setup](SETUP/supabase-auth-setup.md)** - Configure auth, create admin users
+- **[Local Environment Setup](SETUP/local-setup.md)** - Full-stack local workflow
 
 ### Future Setup Docs
 - Environment variables guide
@@ -59,22 +83,14 @@ Complete API documentation for all endpoints.
 
 ---
 
-## Phase Tracking
+## Operational Guides
 
-### Active Development
-- **[Phase 3 Sprint Guide](PHASE_3_SPRINT_GUIDE.md)** ⭐ **Master tracking doc** - Sprint status, deliverables, progress
-- **[Sprint 3 Implementation Guide](PHASE_3_SPRINT_3_IMPLEMENTATION_GUIDE.md)** - Detailed reference for component logic
-
-### Completed Phases
-- Phase 1: Infrastructure ✅
-- Phase 2: Authentication ✅
-- Phase 3: OKR/Component Config 🏗️ (75% complete)
-
-### Upcoming Phases
-- Phase 4: User Data Submission (Week 4-5)
-- Phase 5: Approval Workflow (Week 6)
-- Phase 6: Manager Dashboard (Week 7)
-- Phase 7: Integrations (Week 8)
+- **[Deployment Playbook](GUIDES/DEPLOYMENT.md)** - Release automation and checkpoints
+- **Implementation Guides** *(by sprint)*:
+  - [Phase 3 Sprint Guide](GUIDES/implementation/phase-3-sprint-guide.md)
+  - [Phase 3 Sprint 3 Plan](GUIDES/implementation/phase-3-sprint-3.md)
+  - [Phase 4 Sprint Plan](GUIDES/implementation/phase-4-sprint-plan.md)
+- **Validation Status** - see [Archive reports](#archived-documentation) for historical audits
 
 ---
 
@@ -91,6 +107,16 @@ Historical documents preserved for reference.
 - [Sprint 2 Validation Report](ARCHIVED/Phase_3_Sprints/SPRINT_2_VALIDATION_REPORT.md)
 - [Phase 3 Implementation Plan](ARCHIVED/Phase_3_Sprints/PHASE_3_IMPLEMENTATION_PLAN.md)
 
+### Reports & Audits
+- [Security Audit - Blocker #1](ARCHIVED/reports/SECURITY_AUDIT_BLOCKER1.md)
+- [Blocker #1 Summary](ARCHIVED/reports/BLOCKER1_SUMMARY.md)
+- [Blocker #1 Fix Progress](ARCHIVED/reports/BLOCKER1_FIX_PROGRESS.md)
+- [Blocker #4 Error Handling](ARCHIVED/reports/BLOCKER4_ERROR_HANDLING_COMPLETE.md)
+- [Validation Status Tracker](ARCHIVED/reports/VALIDATION_STATUS.md)
+- [Phase 2 Showstoppers Plan](ARCHIVED/reports/PHASE2_SHOWSTOPPERS_ULTRATHINK.md)
+- [Phase 4 Migration Report](ARCHIVED/reports/PHASE4_MIGRATION_REPORT.md)
+- [Full Project Review](ARCHIVED/reports/FULL_PROJECT_REVIEW.md)
+
 ---
 
 ## Documentation Maintenance
@@ -106,24 +132,26 @@ Historical documents preserved for reference.
 - Setup guides: `<TOOL>_SETUP.md`
 - Test suites: `<SPRINT/PHASE>_TEST_SUITE.md`
 - Phase tracking: `PHASE_<N>_<TYPE>.md`
+- See [Documentation Conventions](documentation-conventions.md) for full taxonomy guidance.
 
 ### Directory Structure
 ```
 docs/
 ├── README.md (this file)
+├── GETTING_STARTED.md
+├── implementation-roadmap.md
+├── technical-implementation-plan.md
 ├── API/
-│   ├── API_OKRs.md
-│   └── API_KPI_COMPONENTS.md
-├── SETUP/
-│   └── SUPABASE_AUTH_SETUP.md
-├── TESTING/
-│   ├── SPRINT_3_TEST_SUITE.md
-│   └── PHASE_3_KNOWN_LIMITATIONS.md
+├── ARCHITECTURE/
 ├── ARCHIVED/
 │   ├── Phase_2/
-│   └── Phase_3_Sprints/
-├── PHASE_3_SPRINT_GUIDE.md
-└── PHASE_3_SPRINT_3_IMPLEMENTATION_GUIDE.md
+│   ├── Phase_3_Sprints/
+│   └── reports/
+├── GUIDES/
+├── SETUP/
+├── TESTING/
+├── concepts/
+└── project/
 ```
 
 ---
@@ -131,9 +159,9 @@ docs/
 ## For New Developers
 
 **Start here:**
-1. Read [Phase 3 Sprint Guide](PHASE_3_SPRINT_GUIDE.md) for project status
-2. Follow [Supabase Setup](SETUP/SUPABASE_AUTH_SETUP.md) for environment config
-3. Review [API docs](API/) for endpoint reference
+1. Read [Implementation Roadmap](implementation-roadmap.md) for current phase context
+2. Follow [Getting Started](GETTING_STARTED.md) to configure your environment
+3. Review [API docs](API/) when you need endpoint details
 4. Run [Sprint 3 tests](TESTING/SPRINT_3_TEST_SUITE.md) to verify setup
 
 **Time to productivity:** ~30 minutes
@@ -143,10 +171,12 @@ docs/
 ## For Product/Project Managers
 
 **Check status:**
-- [Phase 3 Sprint Guide](PHASE_3_SPRINT_GUIDE.md) - See progress, blockers, completion %
+- [Implementation Roadmap](implementation-roadmap.md) - Phase progress snapshot
+- [Project Roadmap](project/roadmap.md) - Upcoming releases and milestones
 
 **Review deliverables:**
-- [Sprint 3 Implementation Guide](PHASE_3_SPRINT_3_IMPLEMENTATION_GUIDE.md) - Technical implementation details
+- [Phase 3 Sprint Guide](GUIDES/implementation/phase-3-sprint-guide.md) - Execution details
+- [Phase 4 Sprint Plan](GUIDES/implementation/phase-4-sprint-plan.md) - Next-phase planning
 
 ---
 

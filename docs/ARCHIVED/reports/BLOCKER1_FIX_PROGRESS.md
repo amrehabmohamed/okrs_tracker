@@ -224,8 +224,8 @@ curl http://localhost:3001/api/users \
 ## Resources
 
 ### Related Documents
-- `/docs/SECURITY_AUDIT_BLOCKER1.md` - Full audit report
-- `/docs/PHASE2_SHOWSTOPPERS_ULTRATHINK.md` - Overall blocker strategy
+- `/docs/ARCHIVED/reports/SECURITY_AUDIT_BLOCKER1.md` - Full audit report
+- `/docs/ARCHIVED/reports/PHASE2_SHOWSTOPPERS_ULTRATHINK.md` - Overall blocker strategy
 - `/docs/implementation-roadmap.md` - Phase timeline
 
 ### Code Files to Update

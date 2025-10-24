@@ -160,7 +160,7 @@ INSERT INTO teams (team_name, created_by) VALUES
 ('Design', 1);
 
 -- Create admin user (Supabase Auth must be configured first)
--- See SETUP/SUPABASE_AUTH_SETUP.md for user creation
+-- See SETUP/supabase-auth-setup.md for user creation
 
 -- Create deadline config
 INSERT INTO deadline_config (role_id, year, quarter, days_after_quarter_end, deadline_exceeded_action)
