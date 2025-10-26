@@ -165,7 +165,7 @@ interface ComponentDetails {
  */
 export async function getComponentWithOKR(component_id: string): Promise<ComponentDetails> {
   const { data, error } = await supabase
-    .from('"KPI_Components"')
+    .from('kpi_components')
     .select(`
       id,
       component_name,
@@ -233,7 +233,7 @@ export async function validateComponentOwnership(
 
   // Get user's role_id from roles table
   const { data: roleData, error: roleError } = await supabase
-    .from('"roles"')
+    .from('roles')
     .select('id')
     .eq('role_name', user_role)
     .single();
@@ -327,7 +327,7 @@ export async function hasPendingSubmission(
   component_id: string
 ): Promise<boolean> {
   const { data, error } = await supabase
-    .from('"User_KPI_Data"')
+    .from('user_kpi_data')
     .select('id')
     .eq('user_id', user_id)
     .eq('kpi_component_id', component_id)
@@ -355,7 +355,7 @@ export async function getLatestVersionNumber(
   component_id: string
 ): Promise<number> {
   const { data, error } = await supabase
-    .from('"User_KPI_Data"')
+    .from('user_kpi_data')
     .select('version_number')
     .eq('user_id', user_id)
     .eq('kpi_component_id', component_id)

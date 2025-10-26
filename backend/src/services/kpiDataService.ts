@@ -19,6 +19,9 @@
 import { supabase } from '../db';
 import {
   CountFormInput,
+  PercentageFormInput,
+  ScoreFormInput,
+  BooleanFormInput,
   KPIData,
   KPIDataResponse,
   MeasurementType,
@@ -27,6 +30,10 @@ import {
 } from '../types/kpiData';
 import {
   validateCountForm,
+  validatePercentageForm,
+  validateScoreForm,
+  validateBooleanForm,
+  calculatePercentage,
   validateComponentOwnership,
   checkDeadline,
   validateMeasurementType,
@@ -39,6 +46,7 @@ import {
   NotFoundError,
   AppError
 } from '../middleware/errorHandler';
+import { ErrorCode } from '../types/errors';
 
 /**
  * Submit count form data (measurement_type = 0)
@@ -108,7 +116,7 @@ export async function submitCountForm(
 
     // Step 7: Insert into database
     const { data: submission, error: insertError } = await supabase
-      .from('"User_KPI_Data"')
+      .from('user_kpi_data')
       .insert(submissionData)
       .select()
       .single();
@@ -123,11 +131,11 @@ export async function submitCountForm(
         );
       }
 
-      throw new AppError('Failed to create submission', 500);
+      throw new AppError(ErrorCode.DATABASE_ERROR, 'Failed to create submission');
     }
 
     if (!submission) {
-      throw new AppError('Submission created but no data returned', 500);
+      throw new AppError(ErrorCode.DATABASE_ERROR, 'Submission created but no data returned');
     }
 
     // Step 8: Return enriched response
@@ -140,7 +148,7 @@ export async function submitCountForm(
 
     // Log unexpected errors
     console.error('Unexpected error in submitCountForm:', error);
-    throw new AppError('An unexpected error occurred while processing your submission', 500);
+    throw new AppError(ErrorCode.SERVER_INTERNAL_ERROR, 'An unexpected error occurred while processing your submission');
   }
 }
 
@@ -218,7 +226,7 @@ export async function getUserKPIData(
   try {
     // Build query
     let query = supabase
-      .from('"User_KPI_Data"')
+      .from('user_kpi_data')
       .select(`
         *,
         kpi_component:kpi_component_id (
@@ -262,7 +270,7 @@ export async function getUserKPIData(
 
     if (error) {
       console.error('Error fetching KPI data:', error);
-      throw new AppError('Failed to retrieve submissions', 500);
+      throw new AppError(ErrorCode.DATABASE_ERROR, 'Failed to retrieve submissions');
     }
 
     if (!data || data.length === 0) {
@@ -319,7 +327,7 @@ export async function getUserKPIData(
     }
 
     console.error('Unexpected error in getUserKPIData:', error);
-    throw new AppError('An unexpected error occurred while retrieving submissions', 500);
+    throw new AppError(ErrorCode.SERVER_INTERNAL_ERROR, 'An unexpected error occurred while retrieving submissions');
   }
 }
 
@@ -377,7 +385,6 @@ export async function submitPercentageForm(
     }
 
     // Step 6: Calculate percentage
-    const { calculatePercentage } = await import('./kpiDataValidationService');
     const calculatedPercentage = calculatePercentage(input.numerator, input.denominator);
 
     // Step 7: Prepare submission data
@@ -398,7 +405,7 @@ export async function submitPercentageForm(
 
     // Step 8: Insert into database
     const { data: submission, error: insertError } = await supabase
-      .from('"User_KPI_Data"')
+      .from('user_kpi_data')
       .insert(submissionData)
       .select()
       .single();
@@ -413,11 +420,11 @@ export async function submitPercentageForm(
         );
       }
 
-      throw new AppError('Failed to create submission', 500);
+      throw new AppError(ErrorCode.DATABASE_ERROR, 'Failed to create submission');
     }
 
     if (!submission) {
-      throw new AppError('Submission created but no data returned', 500);
+      throw new AppError(ErrorCode.DATABASE_ERROR, 'Submission created but no data returned');
     }
 
     // Step 9: Return enriched response
@@ -430,7 +437,7 @@ export async function submitPercentageForm(
 
     // Log unexpected errors
     console.error('Unexpected error in submitPercentageForm:', error);
-    throw new AppError('An unexpected error occurred while processing your submission', 500);
+    throw new AppError(ErrorCode.SERVER_INTERNAL_ERROR, 'An unexpected error occurred while processing your submission');
   }
 }
 
@@ -475,7 +482,7 @@ export async function submitScoreForm(
     };
 
     const { data: submission, error: insertError } = await supabase
-      .from('"User_KPI_Data"')
+      .from('user_kpi_data')
       .insert(submissionData)
       .select()
       .single();
@@ -485,16 +492,16 @@ export async function submitScoreForm(
       if (insertError.code === '23505') {
         throw new ConflictError('A submission with this version number already exists.');
       }
-      throw new AppError('Failed to create submission', 500);
+      throw new AppError(ErrorCode.DATABASE_ERROR, 'Failed to create submission');
     }
 
-    if (!submission) throw new AppError('Submission created but no data returned', 500);
+    if (!submission) throw new AppError(ErrorCode.DATABASE_ERROR, 'Submission created but no data returned');
 
     return enrichSubmissionResponse(submission, component);
   } catch (error) {
     if (error instanceof AppError) throw error;
     console.error('Unexpected error in submitScoreForm:', error);
-    throw new AppError('An unexpected error occurred while processing your submission', 500);
+    throw new AppError(ErrorCode.SERVER_INTERNAL_ERROR, 'An unexpected error occurred while processing your submission');
   }
 }
 
@@ -538,7 +545,7 @@ export async function submitBooleanForm(
     };
 
     const { data: submission, error: insertError } = await supabase
-      .from('"User_KPI_Data"')
+      .from('user_kpi_data')
       .insert(submissionData)
       .select()
       .single();
@@ -548,15 +555,15 @@ export async function submitBooleanForm(
       if (insertError.code === '23505') {
         throw new ConflictError('A submission with this version number already exists.');
       }
-      throw new AppError('Failed to create submission', 500);
+      throw new AppError(ErrorCode.DATABASE_ERROR, 'Failed to create submission');
     }
 
-    if (!submission) throw new AppError('Submission created but no data returned', 500);
+    if (!submission) throw new AppError(ErrorCode.DATABASE_ERROR, 'Submission created but no data returned');
 
     return enrichSubmissionResponse(submission, component);
   } catch (error) {
     if (error instanceof AppError) throw error;
     console.error('Unexpected error in submitBooleanForm:', error);
-    throw new AppError('An unexpected error occurred while processing your submission', 500);
+    throw new AppError(ErrorCode.SERVER_INTERNAL_ERROR, 'An unexpected error occurred while processing your submission');
   }
 }

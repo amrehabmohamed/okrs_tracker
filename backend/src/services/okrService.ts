@@ -153,7 +153,7 @@ export async function updateOKR(
 ): Promise<OKR> {
   // Step 1: Get existing OKR
   const { data: existingOKR, error: fetchError } = await supabase
-    .from('OKRs')
+    .from('okrs')
     .select('*')
     .eq('id', okr_id)
     .single();
@@ -284,7 +284,7 @@ export async function deleteOKR(
   // Note: This is not in a transaction, acceptable for MVP
   try {
     await supabase
-      .from('KPI_Components')
+      .from('kpi_components')
       .update({ 
         // Components don't have status field, but they'll be filtered by parent OKR status
         // In the future, we might add a status field to components too

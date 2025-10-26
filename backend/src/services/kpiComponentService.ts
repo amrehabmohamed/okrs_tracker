@@ -54,7 +54,7 @@ export async function createComponent(
 
   // Step 2: Verify parent OKR exists and is active
   const { data: parentOKR, error: okrError } = await supabase
-    .from('OKRs')
+    .from('okrs')
     .select('id, okr_title, deadline_at, status')
     .eq('id', input.okr_id)
     .single();

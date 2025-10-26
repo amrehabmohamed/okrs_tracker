@@ -92,11 +92,16 @@ export const errorHandler = (
       ...(isDevelopment && { stack: err.stack })
     });
     
-    // Return RFC 7807 response
+    // Return RFC 7807 response with test-compatible wrapper
     return res
       .status(err.statusCode)
       .type('application/problem+json')
       .json({
+        success: false,
+        error: {
+          code: err.code,
+          message: err.message
+        },
         ...problemDetails,
         ...(isDevelopment && { stack: err.stack })
       });
@@ -134,6 +139,11 @@ export const errorHandler = (
     .status(500)
     .type('application/problem+json')
     .json({
+      success: false,
+      error: {
+        code: ErrorCode.SERVER_INTERNAL_ERROR,
+        message: problemDetails.detail
+      },
       ...problemDetails,
       ...(isDevelopment && { stack: err.stack })
     });
