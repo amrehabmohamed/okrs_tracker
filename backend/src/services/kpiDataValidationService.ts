@@ -134,6 +134,46 @@ export function validateCountForm(input: CountFormInput): void {
 }
 
 /**
+ * Get next version number for a user's submission to a component
+ * 
+ * Queries the database for MAX(version_number) and increments by 1
+ * Handles first submission (returns 1) and resubmissions (returns 2, 3, etc)
+ * 
+ * Race conditions handled by unique constraint at database level
+ * 
+ * @param user_id - User's UUID
+ * @param component_id - Component's UUID
+ * @returns Next version number (1 for first submission, 2+ for resubmissions)
+ * @throws AppError if database query fails
+ */
+export async function getNextVersionNumber(
+  user_id: string,
+  component_id: string
+): Promise<number> {
+  const { data, error } = await supabase
+    .from('user_kpi_data')
+    .select('version_number')
+    .eq('user_id', user_id)
+    .eq('kpi_component_id', component_id)
+    .order('version_number', { ascending: false })
+    .limit(1)
+    .single();
+
+  // If no previous submissions exist, error will be PGRST116 (no rows)
+  if (error && error.code === 'PGRST116') {
+    return 1; // First submission
+  }
+
+  if (error) {
+    console.error('Error fetching max version:', error);
+    throw new Error('Failed to determine version number');
+  }
+
+  // Increment max version
+  return (data?.version_number || 0) + 1;
+}
+
+/**
  * Component details with OKR information
  * Used for ownership and deadline validation
  */

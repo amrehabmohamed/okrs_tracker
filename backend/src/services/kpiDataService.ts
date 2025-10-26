@@ -38,7 +38,8 @@ import {
   checkDeadline,
   validateMeasurementType,
   hasPendingSubmission,
-  getComponentWithOKR
+  getComponentWithOKR,
+  getNextVersionNumber
 } from './kpiDataValidationService';
 import {
   ValidationError,
@@ -100,7 +101,10 @@ export async function submitCountForm(
       );
     }
 
-    // Step 6: Prepare submission data
+    // Step 6: Get next version number (dynamic versioning)
+    const version_number = await getNextVersionNumber(user_id, input.kpi_component_id);
+
+    // Step 7: Prepare submission data
     const submissionData = {
       user_id: user_id,
       okr_id: component.okr_id, // Denormalized for reporting efficiency
@@ -110,11 +114,11 @@ export async function submitCountForm(
       notes: input.notes || null,
       data_source: input.data_source || 0, // Default to manual
       status: 0, // Pending approval
-      version_number: 1, // Hardcoded for Sprint 4.1, will be dynamic in Sprint 4.4
+      version_number: version_number,
       submitted_date: new Date().toISOString()
     };
 
-    // Step 7: Insert into database
+    // Step 9: Insert into database
     const { data: submission, error: insertError } = await supabase
       .from('user_kpi_data')
       .insert(submissionData)
@@ -138,7 +142,7 @@ export async function submitCountForm(
       throw new AppError(ErrorCode.DATABASE_ERROR, 'Submission created but no data returned');
     }
 
-    // Step 8: Return enriched response
+    // Step 10: Return enriched response
     return enrichSubmissionResponse(submission, component);
   } catch (error) {
     // Re-throw known errors
@@ -387,7 +391,10 @@ export async function submitPercentageForm(
     // Step 6: Calculate percentage
     const calculatedPercentage = calculatePercentage(input.numerator, input.denominator);
 
-    // Step 7: Prepare submission data
+    // Step 7: Get next version number (dynamic versioning)
+    const version_number = await getNextVersionNumber(user_id, input.kpi_component_id);
+
+    // Step 8: Prepare submission data
     const submissionData = {
       user_id: user_id,
       okr_id: component.okr_id, // Denormalized for reporting efficiency
@@ -399,7 +406,7 @@ export async function submitPercentageForm(
       notes: input.notes || null,
       data_source: input.data_source || 0, // Default to manual
       status: 0, // Pending approval
-      version_number: 1, // Hardcoded for Sprint 4.1, will be dynamic in Sprint 4.4
+      version_number: version_number,
       submitted_date: new Date().toISOString()
     };
 
@@ -531,6 +538,8 @@ export async function submitBooleanForm(
       );
     }
 
+    const version_number = await getNextVersionNumber(user_id, input.kpi_component_id);
+
     const submissionData = {
       user_id,
       okr_id: component.okr_id,
@@ -540,7 +549,7 @@ export async function submitBooleanForm(
       notes: input.notes || null,
       data_source: input.data_source || 0,
       status: 0,
-      version_number: 1,
+      version_number: version_number,
       submitted_date: new Date().toISOString()
     };
 
