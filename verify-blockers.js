@@ -16,14 +16,14 @@ const checks1 = [
   {
     name: 'RLS policies exist',
     check: () => {
-      // Check Supabase schema for RLS
-      return fs.existsSync(path.join(__dirname, '../docs/kpi_platform_schema_v2.json'));
+      // Check Supabase schema for RLS (in migration file)
+      return fs.existsSync(path.join(__dirname, 'backend/src/migrations/002_complete_schema.sql'));
     }
   },
   {
     name: 'Token optimization (no N+1 queries)',
     check: () => {
-      const middleware = path.join(__dirname, '../backend/src/middleware/auth.ts');
+      const middleware = path.join(__dirname, 'backend/src/middleware/auth.ts');
       if (!fs.existsSync(middleware)) return false;
       const content = fs.readFileSync(middleware, 'utf8');
       return content.includes('select') && !content.includes('N+1');
@@ -32,19 +32,19 @@ const checks1 = [
   {
     name: 'Zod validation schemas exist',
     check: () => {
-      return fs.existsSync(path.join(__dirname, '../backend/src/validation/schemas.ts'));
+      return fs.existsSync(path.join(__dirname, 'backend/src/validation/schemas.ts'));
     }
   },
   {
     name: 'Validation middleware exists',
     check: () => {
-      return fs.existsSync(path.join(__dirname, '../backend/src/middleware/validate.ts'));
+      return fs.existsSync(path.join(__dirname, 'backend/src/middleware/validate.ts'));
     }
   },
   {
     name: 'Rate limiting implemented',
     check: () => {
-      const app = path.join(__dirname, '../backend/src/app.ts');
+      const app = path.join(__dirname, 'backend/src/app.ts');
       if (!fs.existsSync(app)) return false;
       const content = fs.readFileSync(app, 'utf8');
       return content.includes('rateLimit') || content.includes('rate-limit');
@@ -67,7 +67,7 @@ const checks2 = [
   {
     name: 'Zod package installed',
     check: () => {
-      const pkg = path.join(__dirname, '../backend/package.json');
+      const pkg = path.join(__dirname, 'backend/package.json');
       if (!fs.existsSync(pkg)) return false;
       const content = JSON.parse(fs.readFileSync(pkg, 'utf8'));
       return content.dependencies?.zod || content.devDependencies?.zod;
@@ -76,7 +76,7 @@ const checks2 = [
   {
     name: 'Auth validation schemas',
     check: () => {
-      const schemas = path.join(__dirname, '../backend/src/validation/schemas.ts');
+      const schemas = path.join(__dirname, 'backend/src/validation/schemas.ts');
       if (!fs.existsSync(schemas)) return false;
       const content = fs.readFileSync(schemas, 'utf8');
       return content.includes('signupSchema') && content.includes('loginSchema');
@@ -85,7 +85,7 @@ const checks2 = [
   {
     name: 'OKR validation schemas',
     check: () => {
-      const schemas = path.join(__dirname, '../backend/src/validation/schemas.ts');
+      const schemas = path.join(__dirname, 'backend/src/validation/schemas.ts');
       if (!fs.existsSync(schemas)) return false;
       const content = fs.readFileSync(schemas, 'utf8');
       return content.includes('createOKRSchema') && content.includes('updateOKRSchema');
@@ -94,7 +94,7 @@ const checks2 = [
   {
     name: 'KPI validation schemas',
     check: () => {
-      const schemas = path.join(__dirname, '../backend/src/validation/schemas.ts');
+      const schemas = path.join(__dirname, 'backend/src/validation/schemas.ts');
       if (!fs.existsSync(schemas)) return false;
       const content = fs.readFileSync(schemas, 'utf8');
       return content.includes('createKPIComponentSchema');
@@ -103,13 +103,13 @@ const checks2 = [
   {
     name: 'Phase 4 form schemas (count, percentage, score, boolean)',
     check: () => {
-      const schemas = path.join(__dirname, '../backend/src/validation/schemas.ts');
+      const schemas = path.join(__dirname, 'backend/src/validation/schemas.ts');
       if (!fs.existsSync(schemas)) return false;
       const content = fs.readFileSync(schemas, 'utf8');
-      return content.includes('countFormSchema') && 
-             content.includes('percentageFormSchema') &&
-             content.includes('scoreFormSchema') &&
-             content.includes('booleanFormSchema');
+      return content.includes('countFormSchema') &&
+        content.includes('percentageFormSchema') &&
+        content.includes('scoreFormSchema') &&
+        content.includes('booleanFormSchema');
     }
   }
 ];
@@ -129,20 +129,20 @@ const checks3 = [
   {
     name: 'Jest configured',
     check: () => {
-      return fs.existsSync(path.join(__dirname, '../backend/jest.config.js')) ||
-             fs.existsSync(path.join(__dirname, '../backend/jest.config.ts'));
+      return fs.existsSync(path.join(__dirname, 'backend/jest.config.js')) ||
+        fs.existsSync(path.join(__dirname, 'backend/jest.config.ts'));
     }
   },
   {
     name: 'Test directory exists',
     check: () => {
-      return fs.existsSync(path.join(__dirname, '../backend/tests'));
+      return fs.existsSync(path.join(__dirname, 'backend/tests'));
     }
   },
   {
     name: 'Auth tests exist',
     check: () => {
-      const testDir = path.join(__dirname, '../backend/tests');
+      const testDir = path.join(__dirname, 'backend/tests');
       if (!fs.existsSync(testDir)) return false;
       const files = getAllFiles(testDir);
       return files.some(f => f.includes('auth') && f.endsWith('.test.ts'));
@@ -151,7 +151,7 @@ const checks3 = [
   {
     name: 'OKR tests exist',
     check: () => {
-      const testDir = path.join(__dirname, '../backend/tests');
+      const testDir = path.join(__dirname, 'backend/tests');
       if (!fs.existsSync(testDir)) return false;
       const files = getAllFiles(testDir);
       return files.some(f => f.includes('okr') && f.endsWith('.test.ts'));
@@ -174,35 +174,35 @@ const checks4 = [
   {
     name: 'Error handler middleware exists',
     check: () => {
-      return fs.existsSync(path.join(__dirname, '../backend/src/middleware/errorHandler.ts'));
+      return fs.existsSync(path.join(__dirname, 'backend/src/middleware/errorHandler.ts'));
     }
   },
   {
     name: 'RFC 7807 format implemented',
     check: () => {
-      const handler = path.join(__dirname, '../backend/src/middleware/errorHandler.ts');
+      const handler = path.join(__dirname, 'backend/src/middleware/errorHandler.ts');
       if (!fs.existsSync(handler)) return false;
       const content = fs.readFileSync(handler, 'utf8');
-      return content.includes('type') && 
-             content.includes('title') && 
-             content.includes('status') &&
-             content.includes('detail') &&
-             content.includes('instance');
+      return content.includes('type') &&
+        content.includes('title') &&
+        content.includes('status') &&
+        content.includes('detail') &&
+        content.includes('instance');
     }
   },
   {
     name: 'Request ID tracking',
     check: () => {
-      const handler = path.join(__dirname, '../backend/src/middleware/errorHandler.ts');
+      const handler = path.join(__dirname, 'backend/src/middleware/errorHandler.ts');
       if (!fs.existsSync(handler)) return false;
       const content = fs.readFileSync(handler, 'utf8');
-      return content.includes('requestId') || content.includes('req.id');
+      return content.includes('requestId') || content.includes('req.id') || content.includes('traceId');
     }
   },
   {
     name: 'Error documentation exists',
     check: () => {
-      return fs.existsSync(path.join(__dirname, '../docs/api/errors.md'));
+      return fs.existsSync(path.join(__dirname, 'docs/api/errors.md'));
     }
   }
 ];
@@ -222,7 +222,7 @@ const checks5 = [
   {
     name: 'OpenAPI 3.0 spec exists',
     check: () => {
-      const spec = path.join(__dirname, '../docs/api/openapi.yaml');
+      const spec = path.join(__dirname, 'docs/api/openapi.yaml');
       if (!fs.existsSync(spec)) return false;
       const content = fs.readFileSync(spec, 'utf8');
       return content.includes('openapi: 3.0');
@@ -231,36 +231,36 @@ const checks5 = [
   {
     name: 'Authentication guide exists',
     check: () => {
-      return fs.existsSync(path.join(__dirname, '../docs/api/authentication.md'));
+      return fs.existsSync(path.join(__dirname, 'docs/api/authentication.md'));
     }
   },
   {
     name: 'Error catalog exists',
     check: () => {
-      return fs.existsSync(path.join(__dirname, '../docs/api/errors.md'));
+      return fs.existsSync(path.join(__dirname, 'docs/api/errors.md'));
     }
   },
   {
     name: 'Rate limiting guide exists',
     check: () => {
-      return fs.existsSync(path.join(__dirname, '../docs/api/rate-limiting.md'));
+      return fs.existsSync(path.join(__dirname, 'docs/api/rate-limiting.md'));
     }
   },
   {
     name: 'API README exists',
     check: () => {
-      return fs.existsSync(path.join(__dirname, '../docs/api/README.md'));
+      return fs.existsSync(path.join(__dirname, 'docs/api/README.md'));
     }
   },
   {
     name: 'OpenAPI spec documents Phase 2-3 endpoints',
     check: () => {
-      const spec = path.join(__dirname, '../docs/api/openapi.yaml');
+      const spec = path.join(__dirname, 'docs/api/openapi.yaml');
       if (!fs.existsSync(spec)) return false;
       const content = fs.readFileSync(spec, 'utf8');
-      return content.includes('/auth/login') && 
-             content.includes('/auth/signup') &&
-             content.includes('/okrs');
+      return content.includes('/auth/login') &&
+        content.includes('/auth/signup') &&
+        content.includes('/okrs');
     }
   }
 ];

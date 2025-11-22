@@ -168,3 +168,8 @@ export const booleanFormSchema = z.object({
   notes: z.string().max(500).optional(),
   data_source: z.literal(0).default(0)
 });
+
+export const submissionQuerySchema = z.object({
+  okr_id: z.string().uuid().optional(),
+  include_history: z.enum(['true', 'false']).transform(v => v === 'true').optional()
+});
